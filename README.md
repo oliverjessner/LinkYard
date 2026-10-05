@@ -146,6 +146,49 @@ This deterministic conversion removes transparent outer padding, preserves the l
 
 For a manual Chrome check: create a project, collect a link with the context menu, collect it again, switch/rename/delete projects, open and move links, search, download all four export formats, use Enter/Escape in dialogs, and restart Chrome to verify stored projects and selection. Resize the panel and create many tabs to verify horizontal scrolling.
 
+## Publish to the Chrome Web Store
+
+The Node.js release script uses [Chrome Web Store API v2](https://developer.chrome.com/docs/webstore/using-api). Requires Node.js 22+ and the `zip` and `unzip` commands on PATH (included on macOS; install them through your system package manager elsewhere).
+
+### Create the release ZIP
+
+```sh
+npm run pack:chrome
+# Equivalent: npm run publish:chrome -- --dry-run
+```
+
+This runs the manifest/code checks and all tests, then creates `dist/linkyard-<version>.zip`. The ZIP contains `manifest.json` at the root, runtime JavaScript/HTML/CSS and the extension icons. Screenshots, the original logo, tests, documentation, development scripts, hidden files and credentials are excluded. Each run creates a fresh archive so deleted files cannot remain in an older ZIP. This mode is fully local and needs no credentials.
+
+### One-time setup
+
+1. For the first release, upload the generated ZIP with **Add new item** in the [Chrome Developer Dashboard](https://chrome.google.com/webstore/devconsole), then complete the Store Listing, Privacy and Distribution sections. Google requires a registered developer account with 2-step verification. See the [first publication guide](https://developer.chrome.com/docs/webstore/publish).
+2. Enable the Chrome Web Store API in a Google Cloud project, configure an OAuth client and obtain a refresh token with the `https://www.googleapis.com/auth/chromewebstore` scope. Authorize with the Google account that owns the Web Store item. Follow [Google's API setup guide](https://developer.chrome.com/docs/webstore/using-api).
+3. Copy the configuration template:
+
+   ```sh
+   cp .env.example .env
+   ```
+
+4. Fill in `CWS_PUBLISHER_ID`, `CWS_EXTENSION_ID`, `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET` and `CWS_REFRESH_TOKEN`. The publisher ID and extension ID come from the Developer Dashboard. `.env` is ignored by Git; CI can supply the same values as environment variables, which take precedence over the file.
+
+### Upload and submit
+
+Keep the versions in `manifest.json` and `package.json` identical, and increase both before uploading a new version. Then run:
+
+```sh
+npm run publish:chrome
+```
+
+The script validates the release, creates the ZIP, refreshes the OAuth access token, uploads the package, waits for upload processing and submits it for publication. [Google reviews the submission and publishes it after approval](https://developer.chrome.com/docs/webstore/api/reference/rest/v2/publishers.items/publish), using the item's existing visibility settings. The terminal shows the returned submission state; `PENDING_REVIEW` means submitted, not already live.
+
+To upload a draft and handle submission in the Developer Dashboard:
+
+```sh
+npm run publish:chrome -- --upload-only
+```
+
+Use `npm run publish:chrome -- --help` for the available options. Failed checks, authentication, uploads or status polling stop the script with a nonzero exit code. Requests have timeouts, and upload/publish POST requests are not automatically retried. OAuth tokens and client secrets are not printed.
+
 ## Privacy
 
 LinkYard stores all data locally in Chrome. No account, tracking, analytics, external server or cloud sync is used. Links stay in local Chrome storage; exports are generated locally. There are no telemetry calls or third-party UI/font/favicon requests.
