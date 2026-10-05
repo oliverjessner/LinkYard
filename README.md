@@ -195,6 +195,10 @@ LinkYard stores all data locally in Chrome. No account, tracking, analytics, ext
 
 Opening a saved link navigates Chrome to the chosen website. Export files are saved to your normal download destination. Uninstalling the extension removes its Chrome storage, so export your collections first if you want to keep a copy.
 
+Read the [Privacy Policy](PRIVACY.md) for details about the data processed, permissions, storage, exports and deletion, and how to contact the developer.
+
+For the Chrome Web Store, publish `PRIVACY.md` at a publicly accessible URL and enter that URL in the Privacy policy field of the Developer Dashboard. See [Google's privacy policy requirements](https://developer.chrome.com/docs/webstore/program-policies/privacy).
+
 ## MVP limitations
 
 - Chrome only; no Firefox, Safari or mobile support.
