@@ -83,7 +83,6 @@ main { flex: 1; padding: 22px 20px 28px; }
 .destructive { background: var(--danger); color: #fff; }
 .destructive:hover { background: #8c3030; }
 .app-footer { display: flex; align-items: center; gap: 7px; padding: 14px 20px; color: #77816f; border-top: 1px solid var(--rule); font-size: 9px; }
-.app-footer svg { width: 11px; height: 11px; }
 .footer-note { margin-left: auto; font-size: 9px; color: #7d8775; }
 .dropdown { position: fixed; z-index: 10; width: 210px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow-y: auto; padding: 5px; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; box-shadow: 0 6px 24px #27332612; }
 .menu-item { display: block; width: 100%; padding: 8px 9px; text-align: left; border-radius: 4px; background: transparent; font-size: 12px; overflow-wrap: anywhere; }
@@ -98,6 +97,7 @@ dialog::backdrop { background: #1d291d3b; }
 .dialog-header h2 { font-size: 17px; line-height: 1.4; letter-spacing: -.4px; margin: 0; overflow-wrap: anywhere; }
 .dialog-header .icon-button { margin-right: -7px; }
 .dialog-description { color: #6e7866; font-size: 12px; overflow-wrap: anywhere; }
+.dialog-description a { color: var(--accent); text-underline-offset: 3px; }
 .field-label { display: block; font-size: 11px; font-weight: 550; margin-bottom: 6px; }
 .form-input { display: block; width: 100%; background: var(--surface); border: 1px solid #d6ded0; padding: 10px 11px; border-radius: 6px; font-size: 13px; }
 .form-error { color: var(--danger); font-size: 11px; min-height: 16px; margin: 8px 0 13px; }
@@ -110,6 +110,5 @@ dialog::backdrop { background: #1d291d3b; }
   main { padding-left: 15px; padding-right: 15px; }
   .projects-bar { padding-left: 15px; }
   .link-metadata { flex-wrap: wrap; white-space: normal; }
-  .footer-note { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }

@@ -36,13 +36,21 @@ After changing extension files, click **Reload** on its card in `chrome://extens
 
 Create a project → browse the web → right-click a link → add it to LinkYard.
 
+### Collect links with a right-click
+
 The quick context-menu entry shows `Add to "Your project"`. The **Add to LinkYard** submenu lets you pick another project; this does not switch your active project. **New Project…** opens the side panel, asks for a name and collects the selected link in that new project. Chrome may group multiple extension menu entries inside one LinkYard parent menu.
+
+![Chrome's link context menu showing LinkYard's quick-add action and project selection](src/assets/screens/add_to.png)
+
+### Manage links in the side panel
 
 Switch projects with the tabs. Use the `+` next to them to create a project, or the `+` next to search to add an HTTP/HTTPS URL manually. Project names are trimmed and limited to 100 characters.
 
 Links appear newest first. The link's menu offers **Open in new tab**, **Copy URL**, **Move to project…** and **Delete link**. A URL already present in the destination project cannot be moved there. Deleting a project asks for confirmation and removes all its links.
 
 Use arrow keys to navigate tabs and menus, Enter to activate or submit, and Escape to close dialogs or menus. Collection feedback appears briefly on the toolbar badge and as a toast when the panel is open: `✓` means added, `=` means already collected, and `!` means an error.
+
+<img src="src/assets/screens/in_browser.png" alt="LinkYard's Chrome side panel with project tabs, search and collected links" width="360">
 
 ## Export
 

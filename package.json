@@ -1,6 +1,6 @@
 {
     "name": "linkyard",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "A local-first, project-based link collector for Chrome.",
     "private": true,
     "license": "MIT",

@@ -10,7 +10,7 @@ export function createModal(dialog, onClose = () => {}) {
     onClose();
   });
 
-  function open({ title, description, fields = [], submitLabel = 'Save', danger = false, onSubmit }) {
+  function open({ title, description, content, fields = [], submitLabel = 'Save', danger = false, onSubmit }) {
     if (dialog.open) return false;
     opener = document.activeElement;
     const form = element('form', 'dialog-form');
@@ -27,6 +27,7 @@ export function createModal(dialog, onClose = () => {}) {
       dialog.setAttribute('aria-describedby', text.id);
       form.append(text);
     } else dialog.removeAttribute('aria-describedby');
+    if (content) form.append(content);
     for (const field of fields) {
       const label = element('label', 'field-label', field.label);
       const id = `dialog-${field.name}`;

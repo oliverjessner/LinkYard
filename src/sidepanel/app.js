@@ -5,7 +5,7 @@ import { createLinkList } from '../components/link-list.js';
 import { createDropdown } from '../components/dropdown.js';
 import { createModal } from '../components/modal.js';
 import { createToast } from '../components/toast.js';
-import { icon } from '../components/dom.js';
+import { element, icon } from '../components/dom.js';
 import { getLinksForProject } from '../services/link-service.js';
 import { createExportService } from '../services/export-service.js';
 import { downloadText } from '../utils/download.js';
@@ -200,17 +200,29 @@ function start() {
     ]);
   }
 
+  function showAboutDialog() {
+    const credit = element('p', 'dialog-description', 'Created by ');
+    const website = element('a', null, 'Oliver Jessner');
+    website.href = 'https://oliverjessner.at';
+    website.target = '_blank';
+    website.rel = 'noopener noreferrer';
+    website.title = 'oliverjessner.at';
+    credit.append(website);
+    modal.open({
+      title: 'About LinkYard',
+      description: `Collect without breaking your browsing flow. LinkYard ${getVersion()} stores links in local Chrome storage. No account, tracking, analytics, external server or cloud sync. Exports are generated locally.`,
+      content: credit,
+      submitLabel: 'Got it', onSubmit: () => {},
+    });
+  }
+
   function showWorkspaceMenu() {
     dropdown.open($('workspace-menu'), [
       { heading: 'Export all' },
       exportAction('Export all as JSON', () => exports.exportAllAsJson(), true),
       exportAction('Export all as TXT', () => exports.exportAllAsTxt(), true),
       { separator: true },
-      { label: 'About LinkYard', onSelect: () => modal.open({
-        title: 'About LinkYard',
-        description: `Collect without breaking your browsing flow. LinkYard ${getVersion()} stores links in local Chrome storage. No account, tracking, analytics, external server or cloud sync. Exports are generated locally.`,
-        submitLabel: 'Got it', onSubmit: () => {},
-      }) },
+      { label: 'About LinkYard', onSelect: showAboutDialog },
     ]);
   }
 
