@@ -1,15 +1,12 @@
 {
-    "name": "template",
-    "version": "1.0.0",
-    "description": "personal template repo",
+    "name": "linkyard",
+    "version": "0.1.0",
+    "description": "A local-first, project-based link collector for Chrome.",
+    "private": true,
     "license": "MIT",
-    "bin": {
-        "template": "bin/cli.js",
-        "template-mcp": "bin/mcp.js"
-    },
-    "homepage": "https://github.com/oliverjessner/fetchary#readme",
+    "homepage": "https://github.com/oliverjessner/LinkYard#readme",
     "bugs": {
-        "url": "https://github.com/oliverjessner/fetchary/issues"
+        "url": "https://github.com/oliverjessner/LinkYard/issues"
     },
     "author": {
         "name": "oliverjessner",
@@ -17,11 +14,14 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/oliverjessner/fetchary.git"
+        "url": "git+https://github.com/oliverjessner/LinkYard.git"
     },
-    "type": "commonjs",
-    "main": "index.js",
+    "type": "module",
+    "engines": {
+        "node": ">=22"
+    },
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "test": "node --test tests/*.test.js",
+        "check": "node scripts/check.js"
     }
 }

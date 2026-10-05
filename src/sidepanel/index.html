@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>LinkYard</title>
+    <link rel="icon" type="image/png" href="../assets/icons/icon-32.png">
+    <link rel="stylesheet" href="styles.css">
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <img src="../assets/icons/icon-48.png" width="26" height="26" alt="">
+        <h1>LinkYard</h1>
+      </div>
+      <button class="icon-button" id="workspace-menu" type="button" aria-label="Workspace menu" aria-haspopup="menu" aria-expanded="false" data-icon="more"></button>
+    </header>
+    <nav class="projects-bar" aria-label="Projects">
+      <div class="project-tabs" id="project-tabs" role="tablist" aria-label="Projects"></div>
+      <button class="icon-button new-project-button" id="new-project" type="button" aria-label="Create project" title="Create project" data-icon="plus"></button>
+    </nav>
+    <main>
+      <section id="loading" class="empty-state" role="status"><p>Opening your LinkYard…</p></section>
+      <section id="error-state" class="empty-state" hidden>
+        <h2>Could not open LinkYard.</h2>
+        <p id="startup-error"></p>
+        <button class="button primary" id="retry" type="button">Try again</button>
+      </section>
+      <section id="welcome" class="empty-state welcome" hidden>
+        <div class="empty-symbol" data-icon="folder"></div>
+        <span class="eyebrow">A place for your research</span>
+        <h2>Your LinkYard is empty.</h2>
+        <p>Create your first project and start collecting links. A little less searching, a little more finding.</p>
+        <button class="button primary" id="create-first-project" type="button">Create project <span data-icon="plus"></span></button>
+        <div class="workflow-hint">Right-click a link. Add it. Keep moving.</div>
+      </section>
+      <section id="project-panel" role="tabpanel" tabindex="0" hidden>
+        <div class="project-heading">
+          <div class="project-label"><h2 id="project-name"></h2><span class="project-link-count" id="link-count"></span></div>
+          <button class="icon-button" id="project-menu" type="button" aria-label="Project menu" aria-haspopup="menu" aria-expanded="false" data-icon="more"></button>
+        </div>
+        <div class="search-toolbar">
+          <div class="search-field">
+            <span data-icon="search"></span>
+            <input id="search" type="search" placeholder="Search links…" aria-label="Search links in this project" autocomplete="off">
+          </div>
+          <button class="icon-button add-link-button" id="add-link" type="button" aria-label="Add link manually" title="Add link" data-icon="plus"></button>
+        </div>
+        <div class="list-summary"><span id="list-summary">COLLECTED LINKS</span><span>NEWEST FIRST</span></div>
+        <ul class="link-list" id="link-list" aria-label="Collected links"></ul>
+        <section id="empty-links" class="empty-state project-empty" hidden>
+          <div class="empty-symbol" data-icon="link"></div>
+          <h3>Good research starts with a link.</h3>
+          <p>Right-click a link while browsing to collect it here, or add one yourself.</p>
+          <button class="button secondary" id="add-first-link" type="button">Add a link</button>
+        </section>
+        <section id="no-results" class="empty-state project-empty" hidden>
+          <h3>No matching links.</h3>
+          <p>Try another title, domain or URL.</p>
+          <button class="button secondary" id="clear-search" type="button">Clear search</button>
+        </section>
+        <p id="search-status" class="visually-hidden" role="status" aria-live="polite"></p>
+      </section>
+    </main>
+    <footer class="app-footer"><span data-icon="lock"></span><span>Local to your browser.</span><span class="footer-note">Yours to keep.</span></footer>
+    <div class="dropdown" id="dropdown" role="menu" aria-label="Actions" hidden></div>
+    <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  </body>
+</html>
