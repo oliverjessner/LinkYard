@@ -50,6 +50,8 @@ Switch projects with the tabs, which show each project's name and link count. Us
 
 Links appear newest first. The link's menu offers **Open in new tab**, **Copy URL**, **Rename link…**, **Move to project…** and **Delete link**. Renaming a link changes its displayed name, which is also used in search and JSON exports. A URL already present in the destination project cannot be moved there. Deleting a project asks for confirmation and removes all its links.
 
+The project menu also offers **Open all links**. It opens all links in that project in background tabs, newest first, with one second between openings. This includes links hidden by the current search. The action is disabled for empty projects and while a batch is opening.
+
 Use arrow keys or Home/End to switch projects and navigate menus, Enter to activate or submit, and Escape to close dialogs or menus. Type a menu item's first letters to find it. Notifications can be dismissed, and their timers pause while hovered or focused. Collection feedback appears briefly on the toolbar badge and as a toast when the panel is open: `✓` means added, `=` means already collected, and `!` means an error.
 
 <img src="src/assets/screens/in_browser.png" alt="LinkYard's Chrome side panel with project tabs, search and collected links" width="360">

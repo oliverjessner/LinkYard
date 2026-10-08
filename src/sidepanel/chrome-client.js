@@ -15,8 +15,8 @@ export function getVersion() {
   return chrome.runtime.getManifest().version;
 }
 
-export async function openLink(url) {
-  await chrome.tabs.create({ url: validateUrl(url).href });
+export async function openLink(url, { active = true } = {}) {
+  await chrome.tabs.create({ url: validateUrl(url).href, active });
 }
 
 export function subscribe({ onWorkspaceChange, onFeedback, onPendingCapture }) {

@@ -41,6 +41,8 @@ const test = base.extend({
           },
         };
         const openedUrls = [];
+        const openedTabs = [];
+        let rejectNextOpen = false;
         let delayedSelection = null;
         let releaseSelection = null;
         let rejectSelection = false;
@@ -85,11 +87,22 @@ const test = base.extend({
               }
             },
           },
-          tabs: { create: async ({ url }) => openedUrls.push(url) },
+          tabs: {
+            async create(options) {
+              if (rejectNextOpen) {
+                rejectNextOpen = false;
+                throw new Error('Opening rejected in browser regression.');
+              }
+              openedUrls.push(options.url);
+              openedTabs.push({ ...options, createdAt: performance.now() });
+            },
+          },
         };
         window.__linkyardTest = {
           read: async () => (await ready).read(),
           openedUrls,
+          openedTabs,
+          failNextOpen: () => { rejectNextOpen = true; },
           feedback: (message) => messageListeners.forEach((listener) => listener({ type: 'linkyard/feedback', message })),
           delayNextSelection: () => {
             delayedSelection = new Promise((resolve) => { releaseSelection = resolve; });
@@ -116,7 +129,22 @@ const test = base.extend({
 });
 
 async function submitDialog(page, name) {
-  await page.getByRole('dialog').getByRole('button', { name, exact: true }).click();
+  await Promise.all([
+    page.evaluate(() => new Promise((resolve) => {
+      document.getElementById('dialog').addEventListener('close', () => resolve(), { once: true });
+    })),
+    page.getByRole('dialog').getByRole('button', { name, exact: true }).click(),
+  ]);
+  await expect(page.getByRole('dialog')).toBeHidden();
+}
+
+async function escapeDialog(page) {
+  await Promise.all([
+    page.evaluate(() => new Promise((resolve) => {
+      document.getElementById('dialog').addEventListener('close', () => resolve(), { once: true });
+    })),
+    page.keyboard.press('Escape'),
+  ]);
   await expect(page.getByRole('dialog')).toBeHidden();
 }
 
@@ -271,6 +299,66 @@ test('navigation keeps creation actions beside their context and search independ
   expect(searchBounds.width).toBeCloseTo(panelBounds.width, 0);
 });
 
+test('Open all links opens the whole selected project in background tabs one second apart', async ({ page, app }) => {
+  await app.load({ projects: [
+    { name: 'Research', links: [
+      { url: 'https://research.test/first', title: 'First article' },
+      { url: 'https://research.test/second', title: 'Second article' },
+      { url: 'https://research.test/third', title: 'Third article' },
+    ] },
+    { name: 'Archive', links: [{ url: 'https://archive.test/article', title: 'Archive article' }] },
+  ] });
+  const expectedUrls = await page.locator('#link-list a').evaluateAll((links) => links.map((link) => link.href));
+  expect(expectedUrls).toHaveLength(3);
+  await page.getByRole('searchbox', { name: 'Search links' }).fill('Second article');
+  await expect(page.locator('#link-list > li')).toHaveCount(1);
+  const projectMenu = page.getByRole('button', { name: 'Actions for project Research', exact: true });
+  const openAll = page.getByRole('menuitem', { name: 'Open all links', exact: true });
+  await projectMenu.click();
+  await expect(openAll).toBeEnabled();
+  await openAll.click();
+  await expect.poll(() => page.evaluate(() => window.__linkyardTest.openedTabs.length)).toBe(1);
+  await projectMenu.click();
+  await expect(openAll).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await page.getByRole('tab', { name: 'Archive 1', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Archive article', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Actions for project Archive', exact: true }).click();
+  await expect(openAll).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await expect.poll(() => page.evaluate(() => window.__linkyardTest.openedTabs.length)).toBe(3);
+  const opened = await page.evaluate(() => window.__linkyardTest.openedTabs);
+  expect(opened.map((tab) => tab.url)).toEqual(expectedUrls);
+  expect(opened.every((tab) => tab.active === false)).toBe(true);
+  for (let index = 1; index < opened.length; index += 1) {
+    expect(opened[index].createdAt - opened[index - 1].createdAt).toBeGreaterThanOrEqual(1000);
+  }
+  await page.getByRole('button', { name: 'Actions for project Archive', exact: true }).click();
+  await expect(openAll).toBeEnabled();
+  await page.keyboard.press('Escape');
+});
+
+test('Open all links is disabled for an empty project and recovers after a failed opening', async ({ page, app }) => {
+  await app.load({ projects: [
+    { name: 'Empty' },
+    { name: 'Reading', links: [{ url: 'https://reading.test/article', title: 'Reading article' }] },
+  ] });
+  await page.getByRole('button', { name: 'Actions for project Empty', exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: 'Open all links', exact: true })).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await page.getByRole('tab', { name: 'Reading 1', exact: true }).click();
+  app.expectError('Opening rejected in browser regression.');
+  await page.evaluate(() => window.__linkyardTest.failNextOpen());
+  await openProjectAction(page, 'Open all links');
+  await expect(page.locator('.oj-toast-danger')).toContainText('Opening rejected in browser regression.');
+  expect(await page.evaluate(() => window.__linkyardTest.openedUrls)).toEqual([]);
+  await page.getByRole('button', { name: 'Actions for project Reading', exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: 'Open all links', exact: true })).toBeEnabled();
+  await page.getByRole('menuitem', { name: 'Open all links', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.__linkyardTest.openedUrls)).toEqual(['https://reading.test/article']);
+  expect((await page.evaluate(() => window.__linkyardTest.openedTabs))[0].active).toBe(false);
+});
+
 test('a single long project keeps New project directly after its visible tab', async ({ page, app }) => {
   const name = 'A research project with a deliberately long name '.repeat(2).slice(0, 100);
   await app.load({ projects: [{ name }] });
@@ -420,8 +508,7 @@ test('the header opens About, OJ menus support keyboard dismissal and duplicate 
   await about.focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog', { name: 'About LinkYard', exact: true })).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toBeHidden();
+  await escapeDialog(page);
   await expect(about).toBeFocused();
   await page.keyboard.press('Space');
   await expect(page.getByRole('dialog', { name: 'About LinkYard', exact: true })).toBeVisible();
@@ -445,9 +532,11 @@ test('the header opens About, OJ menus support keyboard dismissal and duplicate 
   await expect(page.getByRole('menu')).toBeHidden();
   await expect(projectMenu).not.toBeFocused();
   await projectMenu.click();
-  await page.locator('#search').click();
+  await about.click();
   await expect(page.getByRole('menu')).toBeHidden();
-  await expect(page.locator('#search')).toBeFocused();
+  await expect(page.getByRole('dialog', { name: 'About LinkYard', exact: true })).toBeVisible();
+  await escapeDialog(page);
+  await expect(about).toBeFocused();
 
   const linkMenu = page.getByRole('button', { name: 'Actions for Shared article', exact: true });
   await linkMenu.focus();
@@ -521,7 +610,7 @@ test('narrow and wide panels handle long content, local assets and stacked notif
       expect(await page.locator('#new-project').boundingBox()).toEqual(newPosition);
       await page.locator('#new-project').click();
       await expect(page.getByRole('dialog', { name: 'New project', exact: true })).toBeVisible();
-      await page.keyboard.press('Escape');
+      await escapeDialog(page);
       await expect(page.locator('#new-project')).toBeFocused();
       await tabs.evaluate((element) => { element.scrollLeft = 0; });
     }
@@ -544,7 +633,7 @@ test('narrow and wide panels handle long content, local assets and stacked notif
     const dialog = await page.getByRole('dialog').boundingBox();
     expect(dialog.x).toBeGreaterThanOrEqual(0);
     expect(dialog.x + dialog.width).toBeLessThanOrEqual(width + 1);
-    await page.keyboard.press('Escape');
+    await escapeDialog(page);
     await page.locator('#search').focus();
     if (width !== 280) await page.screenshot({ path: `screenshots/linkyard-oj-${width}.png`, fullPage: true });
   }

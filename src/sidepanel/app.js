@@ -20,6 +20,8 @@ function start() {
   let pendingCapture = null;
   let takingPending = false;
   let pendingCheckRequested = false;
+  let openingLinks = false;
+  let disposed = false;
   const toast = createToast(document.body);
   const dropdown = createDropdown($('dropdown'));
   const modal = createModal($('dialog'), () => {
@@ -223,11 +225,30 @@ function start() {
     }) };
   }
 
+  async function openAllLinks(project) {
+    if (openingLinks || disposed) return;
+    const links = getLinksForProject({ links: state.links }, project.id);
+    if (!links.length) return;
+    openingLinks = true;
+    try {
+      toast(`Opening ${links.length} ${links.length === 1 ? 'link' : 'links'} in ${project.name}…`);
+      for (const [index, link] of links.entries()) {
+        if (index > 0) await new Promise((resolve) => setTimeout(resolve, 1000));
+        if (disposed) return;
+        await openLink(link.url, { active: false });
+      }
+      if (!disposed) toast(`Opened ${links.length} ${links.length === 1 ? 'link' : 'links'} in ${project.name}`);
+    } finally {
+      openingLinks = false;
+    }
+  }
+
   function getProjectActions() {
     const project = activeProject();
     if (!project) return [];
     return [
       { label: 'Rename project…', onSelect: () => renameProjectDialog(project) },
+      { label: 'Open all links', disabled: openingLinks || !state.links.some((link) => link.projectId === project.id), onSelect: () => run(() => openAllLinks(project)) },
       { separator: true }, { heading: 'Export project' },
       exportAction('Export as JSON', () => exports.exportProjectAsJson(project.id)),
       exportAction('Export as TXT', () => exports.exportProjectAsTxt(project.id)),
@@ -301,6 +322,7 @@ function start() {
   });
   const clock = setInterval(render, 60_000);
   window.addEventListener('pagehide', () => {
+    disposed = true;
     unsubscribe();
     clearInterval(clock);
     cleanupTooltips();
