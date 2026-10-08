@@ -54,7 +54,7 @@ The project menu also offers **Open all links**. It opens all links in that proj
 
 Use arrow keys or Home/End to switch projects and navigate menus, Enter to activate or submit, and Escape to close dialogs or menus. Type a menu item's first letters to find it. Notifications can be dismissed, and their timers pause while hovered or focused. Collection feedback appears briefly on the toolbar badge and as a toast when the panel is open: `✓` means added, `=` means already collected, and `!` means an error.
 
-<img src="src/assets/screens/in_browser.png" alt="LinkYard's Chrome side panel with project tabs, search and collected links" width="360">
+<img src="src/assets/images/ui.png" alt="LinkYard's Chrome side panel with project tabs, search and collected links" width="360">
 
 ## Export
 
