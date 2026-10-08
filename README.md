@@ -18,11 +18,13 @@ Collect without breaking your browsing flow. Keep research in projects, browse a
 - Open, copy, move and delete links
 - Create, rename and delete projects
 - Project JSON and TXT exports, plus full workspace export
-- Keyboard controls, accessible menus and native dialogs
+- oj-designsystem with a compact dark theme, local Comfortaa/JetBrains Mono fonts and Font Awesome icons
+- Keyboard controls, accessible menus, native dialogs and tooltips
+- Stacked notifications with dismiss buttons and timers that pause on hover/focus
 
 ## Install
 
-Requires Chrome 116 or later. No build step or dependency installation is needed.
+Requires Chrome 116 or later. The design system and its assets are committed locally; no build step or dependency installation is needed to load the extension.
 
 1. Open `chrome://extensions`.
 2. Enable **Developer mode**.
@@ -48,7 +50,7 @@ Switch projects with the tabs. Use the `+` next to them to create a project, or 
 
 Links appear newest first. The link's menu offers **Open in new tab**, **Copy URL**, **Move to project…** and **Delete link**. A URL already present in the destination project cannot be moved there. Deleting a project asks for confirmation and removes all its links.
 
-Use arrow keys to navigate tabs and menus, Enter to activate or submit, and Escape to close dialogs or menus. Collection feedback appears briefly on the toolbar badge and as a toast when the panel is open: `✓` means added, `=` means already collected, and `!` means an error.
+Use arrow keys or Home/End to switch projects and navigate menus, Enter to activate or submit, and Escape to close dialogs or menus. Type a menu item's first letters to find it. Notifications can be dismissed, and their timers pause while hovered or focused. Collection feedback appears briefly on the toolbar badge and as a toast when the panel is open: `✓` means added, `=` means already collected, and `!` means an error.
 
 <img src="src/assets/screens/in_browser.png" alt="LinkYard's Chrome side panel with project tabs, search and collected links" width="360">
 
@@ -70,7 +72,7 @@ Project filenames are normalized safely, e.g. `AI / EU: Research?` becomes `ai-e
 
 ## Architecture
 
-Manifest V3, vanilla JavaScript modules, HTML and CSS. No frontend framework, bundler, UI library or production dependencies. Node.js is used only for tests and development checks.
+Manifest V3, vanilla JavaScript modules, HTML and CSS, with [oj-designsystem](https://github.com/oliverjessner/oj-designsystem) 0.1.0 for shared UI components. No frontend framework or bundler. Node.js is used only for tests, development checks and refreshing the vendored design system.
 
 ```text
 manifest.json
@@ -83,7 +85,8 @@ src/
   utils/                      URL validation, normalization, dates, downloads
   sidepanel/                  HTML/CSS, UI state and Chrome API client
   components/                 Tabs, keyed link list, dialogs, menus and toasts
-tests/                        Node native tests
+  vendor/oj-designsystem/      Pinned local CSS/ESM, fonts, icons and original licenses
+tests/                        Node native tests and browser regression fixtures
 scripts/                      Manifest/code checks and icon conversion
 ```
 
@@ -92,6 +95,20 @@ The background service worker is the only writer. It serializes read-modify-writ
 Context menus rebuild centrally after project creation, rename, deletion or selection. Identical menu configurations skip unnecessary work; rebuilds are serialized and clear old entries first. The worker registers event listeners synchronously so Chrome can wake it after suspension.
 
 The export service exposes pure serializers and four download operations. Chrome access, storage, business logic, UI and export are separate modules, leaving room for future integrations without implementing a backend or sync now.
+
+### Design system
+
+The side panel loads the unmodified public CSS and ESM distribution of oj-designsystem from `src/vendor/oj-designsystem/`. The application sets only `--oj-accent` for its green branding and uses oj tokens for layout and link-specific presentation. Buttons, fields, lists, badges, empty/loading/error states, tabs, menus, tooltips, native dialogs and notifications use the shared components. Project actions, storage and filtering remain in LinkYard.
+
+Fonts and Font Awesome icons load from local WOFF2 assets. Original MIT/OFL/Font Awesome licenses and notices ship in the extension ZIP. `metadata.json` records the exact package version and SHA256 of every copied file; `npm run check` verifies the snapshot without requiring `node_modules`.
+
+To refresh the snapshot after deliberately updating the exact dependency pin:
+
+```sh
+npm ci
+npm run vendor:designsystem
+npm run check
+```
 
 ### Chrome APIs and permissions
 
@@ -127,14 +144,24 @@ IDs use `crypto.randomUUID()`. Link counts are derived, never stored separately.
 
 ## Development and verification
 
-Use Node.js 22 or later:
+Use Node.js 22.12 or later:
 
 ```sh
 npm test
 npm run check
 ```
 
-Native `node:test` suites cover URL handling, project validation and deletion, duplicate detection, moves, search, damaged storage, concurrent writes, restart persistence, context-menu rebuilding and project/workspace exports. The check command validates Manifest V3, necessary permissions, icon dimensions, local assets, module imports, CSP-compatible HTML and JavaScript syntax.
+For browser regression checks, install the development dependencies and Chromium once:
+
+```sh
+npm ci
+npx playwright install chromium
+npm run test:browser
+```
+
+The browser suite loads the real side-panel modules with a Chrome API fixture, uses the extension's CSP, and exercises keyboard navigation, project/link actions, validation, notifications, responsive layouts and local fonts/icons. It complements checking the extension inside Chrome.
+
+Native `node:test` suites cover URL handling, project validation and deletion, duplicate detection, moves, search, damaged storage, concurrent writes, restart persistence, context-menu rebuilding, project/workspace exports and packaged design-system assets. The check command validates Manifest V3, necessary permissions, icon dimensions, local assets, CSS font/icon references, design-system integrity, module imports, CSP-compatible HTML and JavaScript syntax.
 
 The original logo is kept intact in `src/assets/images/logo.png`. Committed PNGs are used for the toolbar, extension manager, context menu, side panel and page icon. To regenerate them on macOS, with Swift installed:
 
@@ -148,7 +175,7 @@ For a manual Chrome check: create a project, collect a link with the context men
 
 ## Publish to the Chrome Web Store
 
-The Node.js release script uses [Chrome Web Store API v2](https://developer.chrome.com/docs/webstore/using-api). Requires Node.js 22+ and the `zip` and `unzip` commands on PATH (included on macOS; install them through your system package manager elsewhere).
+The Node.js release script uses [Chrome Web Store API v2](https://developer.chrome.com/docs/webstore/using-api). Requires Node.js 22.12+ and the `zip` and `unzip` commands on PATH (included on macOS; install them through your system package manager elsewhere).
 
 ### Create the release ZIP
 
@@ -157,7 +184,7 @@ npm run pack:chrome
 # Equivalent: npm run publish:chrome -- --dry-run
 ```
 
-This runs the manifest/code checks and all tests, then creates `dist/linkyard-<version>.zip`. The ZIP contains `manifest.json` at the root, runtime JavaScript/HTML/CSS and the extension icons. Screenshots, the original logo, tests, documentation, development scripts, hidden files and credentials are excluded. Each run creates a fresh archive so deleted files cannot remain in an older ZIP. This mode is fully local and needs no credentials.
+This runs the manifest/code checks and all native tests, then creates `dist/linkyard-<version>.zip`. The ZIP contains `manifest.json` at the root, runtime JavaScript/HTML/CSS, the extension icons and local oj-designsystem fonts/icons/licenses. Screenshots, the original logo, tests, documentation, development scripts, hidden files and credentials are excluded. Each run creates a fresh archive so deleted files cannot remain in an older ZIP. This mode is fully local and needs no credentials.
 
 ### One-time setup
 

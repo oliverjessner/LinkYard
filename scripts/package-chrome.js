@@ -9,6 +9,11 @@ const runtimeDirectories = [
   'src/storage', 'src/utils', 'src/assets/icons',
 ];
 const runtimeExtensions = new Set(['.js', '.html', '.css', '.png']);
+const vendorDirectory = 'src/vendor/oj-designsystem';
+const vendorNotices = new Set([
+  'LICENSE', 'THIRD-PARTY-NOTICES.md', 'metadata.json',
+  'licenses/comfortaa-OFL.txt', 'licenses/jetbrains-mono-OFL.txt', 'licenses/fontawesome-free-LICENSE.txt',
+]);
 
 async function runtimeFiles(root, relativeDirectory) {
   const entries = await readdir(path.join(root, relativeDirectory), { withFileTypes: true });
@@ -23,11 +28,31 @@ async function runtimeFiles(root, relativeDirectory) {
   return files;
 }
 
+async function vendorFiles(root, relativeDirectory = vendorDirectory) {
+  const entries = await readdir(path.join(root, relativeDirectory), { withFileTypes: true });
+  const files = [];
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    if (entry.name.startsWith('.')) continue;
+    const relativePath = `${relativeDirectory}/${entry.name}`;
+    if (entry.isSymbolicLink()) throw new Error(`Cannot package a symbolic link: ${relativePath}`);
+    if (entry.isDirectory()) files.push(...await vendorFiles(root, relativePath));
+    else if (entry.isFile()) {
+      const vendorPath = relativePath.slice(vendorDirectory.length + 1);
+      if (vendorPath === 'index.js' || vendorPath === 'styles.css' ||
+          /^assets\/(fonts|fontawesome)\/[^/]+\.woff2$/.test(vendorPath) || vendorNotices.has(vendorPath)) {
+        files.push(relativePath);
+      }
+    }
+  }
+  return files;
+}
+
 export async function packageChrome(root) {
   const manifest = JSON.parse(await readFile(path.join(root, 'manifest.json'), 'utf8'));
   if (!/^\d+(?:\.\d+){0,3}$/.test(manifest.version)) throw new Error('Invalid extension version in manifest.json.');
   const files = ['manifest.json', 'src/constants.js'];
   for (const directory of runtimeDirectories) files.push(...await runtimeFiles(root, directory));
+  files.push(...await vendorFiles(root));
   const outputDirectory = path.join(root, 'dist');
   await mkdir(outputDirectory, { recursive: true });
   const temporaryDirectory = await mkdtemp(path.join(outputDirectory, '.chrome-package-'));

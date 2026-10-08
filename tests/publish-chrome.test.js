@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -98,6 +99,35 @@ test('unsafe manifest versions fail before creating an archive', async (t) => {
   const directory = await temporaryDirectory(t);
   await writeFile(path.join(directory, 'manifest.json'), JSON.stringify({ version: '../../outside' }));
   await assert.rejects(packageChrome(directory), /Invalid extension version/);
+});
+
+test('release ZIP preserves offline design-system assets and notices while excluding dependencies and vendor docs', async (t) => {
+  const directory = await temporaryDirectory(t);
+  await cp(path.join(root, 'manifest.json'), path.join(directory, 'manifest.json'));
+  await cp(path.join(root, 'src'), path.join(directory, 'src'), { recursive: true });
+  const vendorPath = 'src/vendor/oj-designsystem';
+  await mkdir(path.join(directory, 'node_modules/oj-designsystem'), { recursive: true });
+  await mkdir(path.join(directory, vendorPath, 'docs'), { recursive: true });
+  await writeFile(path.join(directory, 'node_modules/oj-designsystem/index.js'), 'must-not-be-packaged');
+  await writeFile(path.join(directory, vendorPath, 'README.md'), 'must-not-be-packaged');
+  await writeFile(path.join(directory, vendorPath, 'docs/guide.md'), 'must-not-be-packaged');
+  await writeFile(path.join(directory, vendorPath, '.env'), 'must-not-be-packaged');
+  await writeFile(path.join(directory, vendorPath, 'tokens.css'), 'must-not-be-packaged');
+  const result = await packageChrome(directory);
+  const files = (await exec('unzip', ['-Z1', result.archive])).stdout.trim().split('\n');
+  const metadata = JSON.parse(await readFile(path.join(directory, vendorPath, 'metadata.json'), 'utf8'));
+  const expectedFiles = [...Object.keys(metadata.files), 'metadata.json'].map((file) => `${vendorPath}/${file}`).sort();
+  assert.deepEqual(files.filter((file) => file.startsWith(`${vendorPath}/`)).sort(), expectedFiles);
+  assert.ok(expectedFiles.some((file) => /assets\/fonts\/comfortaa-latin-ext-.*\.woff2$/.test(file)));
+  assert.ok(expectedFiles.includes(`${vendorPath}/assets/fontawesome/fa-solid-900.woff2`));
+  assert.ok(expectedFiles.includes(`${vendorPath}/licenses/fontawesome-free-LICENSE.txt`));
+  assert.ok(expectedFiles.includes(`${vendorPath}/LICENSE`));
+  assert.ok(expectedFiles.includes(`${vendorPath}/THIRD-PARTY-NOTICES.md`));
+  assert.equal(files.some((file) => /node_modules|\/docs\/|README|\.env|tokens\.css/.test(file)), false);
+  for (const [file, hash] of Object.entries(metadata.files)) {
+    const { stdout } = await exec('unzip', ['-p', result.archive, `${vendorPath}/${file}`], { encoding: 'buffer' });
+    assert.equal(createHash('sha256').update(stdout).digest('hex'), hash, `Archive must preserve ${file} bytes.`);
+  }
 });
 
 test('OAuth refresh, binary upload and publication use the v2 API contract', async (t) => {

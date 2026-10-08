@@ -9,35 +9,58 @@ import { element, icon } from '../components/dom.js';
 import { getLinksForProject } from '../services/link-service.js';
 import { createExportService } from '../services/export-service.js';
 import { downloadText } from '../utils/download.js';
+import { initTooltips } from '../vendor/oj-designsystem/index.js';
 
 function start() {
   const $ = (id) => document.getElementById(id);
   const state = { projects: [], links: [], activeProjectId: null, searchQuery: '' };
+  let committedActiveProjectId = null;
+  let projectSelectionVersion = 0;
   let refreshVersion = 0;
   let pendingCapture = null;
   let takingPending = false;
   let pendingCheckRequested = false;
-  const toast = createToast($('toast'));
+  const toast = createToast(document.body);
   const dropdown = createDropdown($('dropdown'));
   const modal = createModal($('dialog'), () => {
     if (pendingCapture) queueMicrotask(() => createProjectDialog());
   });
   const exports = createExportService(readWorkspace, downloadText);
-  const renderTabs = createProjectTabs($('project-tabs'), (id) => run(async () => {
+  const renderTabs = createProjectTabs($('project-tabs'), $('project-panels'), (id) => {
+    const version = ++projectSelectionVersion;
     dropdown.close(false);
-    await mutate(COMMANDS.SET_ACTIVE_PROJECT, { id });
-  }));
+    state.activeProjectId = id;
+    state.searchQuery = '';
+    $('search').value = '';
+    render();
+    run(async () => {
+      try {
+        await mutate(COMMANDS.SET_ACTIVE_PROJECT, { id });
+      } catch (error) {
+        if (version === projectSelectionVersion) {
+          const tabFocused = $('project-tabs').contains(document.activeElement);
+          state.activeProjectId = committedActiveProjectId;
+          render();
+          if (tabFocused) $('project-tabs').querySelector('[aria-selected="true"]')?.focus({ preventScroll: true });
+        }
+        throw error;
+      }
+    });
+  });
   const renderLinks = createLinkList($('link-list'), {
     onOpen: (url) => run(() => openLink(url)),
-    onMenu: showLinkMenu,
+    onBindMenu: (button, link) => dropdown.bind(button, () => getLinkActions(link)),
   });
 
   for (const node of document.querySelectorAll('[data-icon]')) node.append(icon(node.dataset.icon));
+  const cleanupTooltips = initTooltips(document.body);
+  dropdown.bind($('workspace-menu'), getWorkspaceActions);
+  dropdown.bind($('project-menu'), getProjectActions);
 
   function run(operation) {
     Promise.resolve().then(operation).catch((error) => {
       console.error('LinkYard:', error);
-      toast(error.message || 'Something went wrong. Please try again.');
+      toast(error.message || 'Something went wrong. Please try again.', { type: 'danger' });
     });
   }
 
@@ -47,6 +70,7 @@ function start() {
 
   function apply(workspace) {
     const activeId = workspace.settings.activeProjectId;
+    committedActiveProjectId = activeId;
     if (activeId !== state.activeProjectId) {
       state.searchQuery = '';
       $('search').value = '';
@@ -82,7 +106,6 @@ function start() {
     if (!project) { renderLinks([]); return; }
     const total = state.links.filter((link) => link.projectId === project.id).length;
     const visible = getLinksForProject({ links: state.links }, project.id, state.searchQuery);
-    $('project-panel').setAttribute('aria-labelledby', `project-tab-${project.id}`);
     $('project-name').textContent = project.name;
     $('project-name').title = project.name;
     $('link-count').textContent = total;
@@ -143,14 +166,14 @@ function start() {
       submitLabel: 'Add',
       async onSubmit({ url }) {
         const result = await mutate(COMMANDS.ADD_LINK, { projectId: project.id, input: { url } });
-        toast(`${result.duplicate ? 'Already in' : 'Added to'} ${project.name}`);
+        toast(`${result.duplicate ? 'Already in' : 'Added to'} ${project.name}`, { type: result.duplicate ? 'warning' : 'success' });
       },
     });
   }
 
   function moveLinkDialog(link) {
     const targets = state.projects.filter((project) => project.id !== link.projectId);
-    if (!targets.length) { toast('Create another project to move this link.'); return; }
+    if (!targets.length) { toast('Create another project to move this link.', { type: 'info' }); return; }
     modal.open({
       title: 'Move link',
       description: link.title,
@@ -167,8 +190,8 @@ function start() {
     });
   }
 
-  function showLinkMenu(button, link) {
-    dropdown.open(button, [
+  function getLinkActions(link) {
+    return [
       { label: 'Open in new tab', onSelect: () => run(() => openLink(link.url)) },
       { label: 'Copy URL', onSelect: () => run(async () => { await navigator.clipboard.writeText(link.url); toast('Link copied'); }) },
       { label: 'Move to project…', disabled: state.projects.length < 2, onSelect: () => moveLinkDialog(link) },
@@ -177,7 +200,7 @@ function start() {
         await mutate(COMMANDS.DELETE_LINK, { id: link.id });
         toast('Link deleted');
       }) },
-    ]);
+    ];
   }
 
   function exportAction(label, operation, all = false) {
@@ -187,22 +210,22 @@ function start() {
     }) };
   }
 
-  function showProjectMenu() {
+  function getProjectActions() {
     const project = activeProject();
-    if (!project) return;
-    dropdown.open($('project-menu'), [
+    if (!project) return [];
+    return [
       { label: 'Rename project…', onSelect: () => renameProjectDialog(project) },
       { separator: true }, { heading: 'Export project' },
       exportAction('Export as JSON', () => exports.exportProjectAsJson(project.id)),
       exportAction('Export as TXT', () => exports.exportProjectAsTxt(project.id)),
       { separator: true },
       { label: 'Delete project…', danger: true, onSelect: () => deleteProjectDialog(project) },
-    ]);
+    ];
   }
 
   function showAboutDialog() {
-    const credit = element('p', 'dialog-description', 'Created by ');
-    const website = element('a', null, 'Oliver Jessner');
+    const credit = element('p', 'dialog-description oj-muted', 'Created by ');
+    const website = element('a', 'oj-link', 'Oliver Jessner');
     website.href = 'https://oliverjessner.at';
     website.target = '_blank';
     website.rel = 'noopener noreferrer';
@@ -216,14 +239,14 @@ function start() {
     });
   }
 
-  function showWorkspaceMenu() {
-    dropdown.open($('workspace-menu'), [
+  function getWorkspaceActions() {
+    return [
       { heading: 'Export all' },
       exportAction('Export all as JSON', () => exports.exportAllAsJson(), true),
       exportAction('Export all as TXT', () => exports.exportAllAsTxt(), true),
       { separator: true },
       { label: 'About LinkYard', onSelect: showAboutDialog },
-    ]);
+    ];
   }
 
   async function checkPendingCapture() {
@@ -259,8 +282,6 @@ function start() {
   $('create-first-project').addEventListener('click', createProjectDialog);
   $('add-link').addEventListener('click', addLinkDialog);
   $('add-first-link').addEventListener('click', addLinkDialog);
-  $('workspace-menu').addEventListener('click', showWorkspaceMenu);
-  $('project-menu').addEventListener('click', showProjectMenu);
   $('retry').addEventListener('click', () => run(initialize));
   $('search').addEventListener('input', (event) => { state.searchQuery = event.target.value; render(); });
   $('clear-search').addEventListener('click', () => {
@@ -275,7 +296,16 @@ function start() {
     onPendingCapture: () => run(checkPendingCapture),
   });
   const clock = setInterval(render, 60_000);
-  window.addEventListener('pagehide', () => { unsubscribe(); clearInterval(clock); }, { once: true });
+  window.addEventListener('pagehide', () => {
+    unsubscribe();
+    clearInterval(clock);
+    cleanupTooltips();
+    renderTabs.destroy();
+    renderLinks.destroy();
+    dropdown.destroy();
+    modal.destroy();
+    toast.destroy();
+  }, { once: true });
   run(initialize);
 }
 

@@ -1,6 +1,6 @@
 {
     "name": "linkyard",
-    "version": "0.1.1",
+    "version": "0.2.1",
     "description": "A local-first, project-based link collector for Chrome.",
     "private": true,
     "license": "MIT",
@@ -18,12 +18,20 @@
     },
     "type": "module",
     "engines": {
-        "node": ">=22"
+        "node": ">=22.12.0"
     },
     "scripts": {
         "test": "node --test tests/*.test.js",
+        "test:browser": "playwright test",
         "check": "node scripts/check.js",
+        "vendor:designsystem": "node scripts/vendor-designsystem.js",
         "pack:chrome": "node scripts/publish-chrome.js --dry-run",
         "publish:chrome": "node scripts/publish-chrome.js"
+    },
+    "dependencies": {
+        "oj-designsystem": "0.1.0"
+    },
+    "devDependencies": {
+        "@playwright/test": "1.64.0"
     }
 }

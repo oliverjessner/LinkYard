@@ -3,70 +3,79 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="light">
+    <meta name="color-scheme" content="dark">
     <title>LinkYard</title>
     <link rel="icon" type="image/png" href="../assets/icons/icon-32.png">
+    <link rel="stylesheet" href="../vendor/oj-designsystem/styles.css">
     <link rel="stylesheet" href="styles.css">
     <script type="module" src="app.js"></script>
   </head>
-  <body>
+  <body class="oj-app" data-oj-tabs>
     <header class="app-header">
-      <div class="brand">
+      <div class="brand oj-inline">
         <img src="../assets/icons/icon-48.png" width="26" height="26" alt="">
-        <h1>LinkYard</h1>
+        <h1 class="oj-heading-2">LinkYard</h1>
       </div>
-      <button class="icon-button" id="workspace-menu" type="button" aria-label="Workspace menu" aria-haspopup="menu" aria-expanded="false" data-icon="more"></button>
+      <button class="oj-icon-button" id="workspace-menu" type="button" aria-label="Workspace menu" data-oj-tooltip="Workspace menu" data-icon="more"></button>
     </header>
     <nav class="projects-bar" aria-label="Projects">
-      <div class="project-tabs" id="project-tabs" role="tablist" aria-label="Projects"></div>
-      <button class="icon-button new-project-button" id="new-project" type="button" aria-label="Create project" title="Create project" data-icon="plus"></button>
+      <div class="oj-tab-list project-tabs" id="project-tabs" role="tablist" aria-label="Projects"></div>
+      <button class="oj-icon-button new-project-button" id="new-project" type="button" aria-label="Create project" data-oj-tooltip="Create project" data-icon="plus"></button>
     </nav>
     <main>
-      <section id="loading" class="empty-state" role="status"><p>Opening your LinkYard…</p></section>
-      <section id="error-state" class="empty-state" hidden>
-        <h2>Could not open LinkYard.</h2>
-        <p id="startup-error"></p>
-        <button class="button primary" id="retry" type="button">Try again</button>
+      <section id="loading" class="oj-empty-state empty-state" role="status">
+        <span class="oj-spinner" aria-hidden="true"></span><p>Opening your LinkYard…</p>
       </section>
-      <section id="welcome" class="empty-state welcome" hidden>
-        <div class="empty-symbol" data-icon="folder"></div>
-        <span class="eyebrow">A place for your research</span>
-        <h2>Your LinkYard is empty.</h2>
-        <p>Create your first project and start collecting links. A little less searching, a little more finding.</p>
-        <button class="button primary" id="create-first-project" type="button">Create project <span data-icon="plus"></span></button>
-        <div class="workflow-hint">Right-click a link. Add it. Keep moving.</div>
+      <section id="error-state" class="oj-empty-state empty-state" hidden>
+        <h2 class="oj-empty-state-title">Could not open LinkYard.</h2>
+        <p class="oj-alert oj-alert-danger" id="startup-error" role="alert"></p>
+        <button class="oj-button oj-button-primary" id="retry" type="button">Try again</button>
       </section>
-      <section id="project-panel" role="tabpanel" tabindex="0" hidden>
-        <div class="project-heading">
-          <div class="project-label"><h2 id="project-name"></h2><span class="project-link-count" id="link-count"></span></div>
-          <button class="icon-button" id="project-menu" type="button" aria-label="Project menu" aria-haspopup="menu" aria-expanded="false" data-icon="more"></button>
+      <section id="welcome" class="oj-empty-state empty-state" hidden>
+        <div class="oj-empty-state-icon empty-symbol" data-icon="folder"></div>
+        <span class="oj-kicker">A place for your research</span>
+        <h2 class="oj-heading-2">Your LinkYard is empty.</h2>
+        <p class="oj-empty-state-description">Create your first project and start collecting links. A little less searching, a little more finding.</p>
+        <div class="oj-empty-state-actions">
+          <button class="oj-button oj-button-primary" id="create-first-project" type="button">Create project <span data-icon="plus"></span></button>
         </div>
-        <div class="search-toolbar">
-          <div class="search-field">
-            <span data-icon="search"></span>
-            <input id="search" type="search" placeholder="Search links…" aria-label="Search links in this project" autocomplete="off">
+        <p class="oj-small oj-muted workflow-hint">Right-click a link. Add it. Keep moving.</p>
+      </section>
+      <div id="project-panels">
+        <section id="project-panel" hidden>
+          <div class="oj-section-header project-heading">
+            <div class="project-label oj-inline"><h2 class="oj-heading-4" id="project-name"></h2><span class="oj-badge oj-badge-accent oj-mono" id="link-count"></span></div>
+            <button class="oj-icon-button" id="project-menu" type="button" aria-label="Project menu" data-oj-tooltip="Project menu" data-icon="more"></button>
           </div>
-          <button class="icon-button add-link-button" id="add-link" type="button" aria-label="Add link manually" title="Add link" data-icon="plus"></button>
-        </div>
-        <div class="list-summary"><span id="list-summary">COLLECTED LINKS</span><span>NEWEST FIRST</span></div>
-        <ul class="link-list" id="link-list" aria-label="Collected links"></ul>
-        <section id="empty-links" class="empty-state project-empty" hidden>
-          <div class="empty-symbol" data-icon="link"></div>
-          <h3>Good research starts with a link.</h3>
-          <p>Right-click a link while browsing to collect it here, or add one yourself.</p>
-          <button class="button secondary" id="add-first-link" type="button">Add a link</button>
+          <div class="oj-field search-field">
+            <label class="oj-label" for="search">Search links</label>
+            <div class="oj-input-group">
+              <input class="oj-input" id="search" type="search" placeholder="Title, domain or URL…" autocomplete="off">
+              <button class="oj-icon-button" id="add-link" type="button" aria-label="Add link manually" data-oj-tooltip="Add link" data-icon="plus"></button>
+            </div>
+          </div>
+          <div class="list-summary oj-kicker"><span id="list-summary">COLLECTED LINKS</span><span>NEWEST FIRST</span></div>
+          <ul class="oj-list link-list" id="link-list" aria-label="Collected links"></ul>
+          <section id="empty-links" class="oj-empty-state project-empty" hidden>
+            <div class="oj-empty-state-icon empty-symbol" data-icon="link"></div>
+            <h3 class="oj-empty-state-title">Good research starts with a link.</h3>
+            <p class="oj-empty-state-description">Right-click a link while browsing to collect it here, or add one yourself.</p>
+            <div class="oj-empty-state-actions"><button class="oj-button oj-button-secondary" id="add-first-link" type="button">Add a link</button></div>
+          </section>
+          <section id="no-results" class="oj-empty-state project-empty" hidden>
+            <h3 class="oj-empty-state-title">No matching links.</h3>
+            <p class="oj-empty-state-description">Try another title, domain or URL.</p>
+            <div class="oj-empty-state-actions"><button class="oj-button oj-button-secondary" id="clear-search" type="button">Clear search</button></div>
+          </section>
+          <p id="search-status" class="oj-sr-only" role="status" aria-live="polite"></p>
         </section>
-        <section id="no-results" class="empty-state project-empty" hidden>
-          <h3>No matching links.</h3>
-          <p>Try another title, domain or URL.</p>
-          <button class="button secondary" id="clear-search" type="button">Clear search</button>
-        </section>
-        <p id="search-status" class="visually-hidden" role="status" aria-live="polite"></p>
-      </section>
+      </div>
     </main>
-    <footer class="app-footer"><span class="footer-note">Yours to keep.</span></footer>
-    <div class="dropdown" id="dropdown" role="menu" aria-label="Actions" hidden></div>
-    <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
-    <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+    <footer class="app-footer oj-small oj-muted">
+      <span class="oj-status oj-status-success"><span class="oj-status-dot" aria-hidden="true"></span>Stored locally</span>
+      <span class="footer-note">Yours to keep.</span>
+    </footer>
+    <div class="oj-menu" id="dropdown" role="menu" aria-label="Actions" hidden></div>
+    <dialog class="oj-dialog project-dialog" id="dialog" data-oj-dialog aria-labelledby="dialog-title"></dialog>
   </body>
 </html>
