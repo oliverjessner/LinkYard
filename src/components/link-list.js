@@ -5,6 +5,7 @@ import { initTooltips } from '../vendor/oj-designsystem/index.js';
 
 function createLinkItem(link, { onOpen, onBindMenu }) {
   const row = element('li', 'oj-list-item link-item');
+  row.dataset.linkId = link.id;
   const monogram = element('span', 'domain-mark', (link.domain.replace(/^www\./, '')[0] || '↗').toUpperCase());
   monogram.setAttribute('aria-hidden', 'true');
   const content = element('div', 'link-content');
@@ -14,7 +15,8 @@ function createLinkItem(link, { onOpen, onBindMenu }) {
   title.rel = 'noopener noreferrer';
   title.title = link.url;
   title.addEventListener('click', (event) => { event.preventDefault(); onOpen(link.url); });
-  const domain = element('div', 'link-domain oj-mono oj-small oj-muted', link.domain);
+  const url = element('div', 'link-url oj-truncate oj-mono oj-small oj-muted', link.url);
+  url.title = link.url;
   const metadata = element('div', 'link-metadata oj-small oj-muted');
   const time = element('time', null, relativeDate(link.createdAt));
   time.dateTime = link.createdAt;
@@ -28,7 +30,7 @@ function createLinkItem(link, { onOpen, onBindMenu }) {
     separator.setAttribute('aria-hidden', 'true');
     metadata.append(separator, source);
   }
-  content.append(title, domain, metadata);
+  content.append(title, url, metadata);
   const menu = iconButton('more', `Actions for ${link.title}`, 'oj-icon-button link-menu-button');
   menu.dataset.ojTooltip = 'Link actions';
   row.append(monogram, content, menu);

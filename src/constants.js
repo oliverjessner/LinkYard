@@ -16,6 +16,7 @@ export const COMMANDS = Object.freeze({
   DELETE_PROJECT: 'deleteProject',
   SET_ACTIVE_PROJECT: 'setActiveProject',
   ADD_LINK: 'addLink',
+  RENAME_LINK: 'renameLink',
   DELETE_LINK: 'deleteLink',
   MOVE_LINK: 'moveLink',
   TAKE_PENDING_CAPTURE: 'takePendingCapture',

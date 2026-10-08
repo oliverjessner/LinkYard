@@ -15,9 +15,9 @@ Collect without breaking your browsing flow. Keep research in projects, browse a
 - Local-first storage, without accounts or a backend
 - Search titles, URLs, domains and source metadata within the active project
 - Duplicate detection, including URL fragments and trailing slashes
-- Open, copy, move and delete links
+- Open, copy, rename, move and delete links
 - Create, rename and delete projects
-- Project JSON and TXT exports, plus full workspace export
+- Project JSON and TXT exports
 - oj-designsystem with a compact dark theme, local Comfortaa/JetBrains Mono fonts and Font Awesome icons
 - Keyboard controls, accessible menus, native dialogs and tooltips
 - Stacked notifications with dismiss buttons and timers that pause on hover/focus
@@ -46,9 +46,9 @@ The quick context-menu entry shows `Add to "Your project"`. The **Add to LinkYar
 
 ### Manage links in the side panel
 
-Switch projects with the tabs. Use the `+` next to them to create a project, or the `+` next to search to add an HTTP/HTTPS URL manually. Project names are trimmed and limited to 100 characters.
+Switch projects with the tabs, which show each project's name and link count. Use **New project** next to the tabs to create a project. Under the tabs, **Add link** adds an HTTP/HTTPS URL manually and the project menu offers actions for the selected project. Search occupies its own full-width row below these actions. Project names are trimmed and limited to 100 characters. Click the header with the logo and **LinkYard** to open **About LinkYard**.
 
-Links appear newest first. The link's menu offers **Open in new tab**, **Copy URL**, **Move to project…** and **Delete link**. A URL already present in the destination project cannot be moved there. Deleting a project asks for confirmation and removes all its links.
+Links appear newest first. The link's menu offers **Open in new tab**, **Copy URL**, **Rename link…**, **Move to project…** and **Delete link**. Renaming a link changes its displayed name, which is also used in search and JSON exports. A URL already present in the destination project cannot be moved there. Deleting a project asks for confirmation and removes all its links.
 
 Use arrow keys or Home/End to switch projects and navigate menus, Enter to activate or submit, and Escape to close dialogs or menus. Type a menu item's first letters to find it. Notifications can be dismissed, and their timers pause while hovered or focused. Collection feedback appears briefly on the toolbar badge and as a toast when the panel is open: `✓` means added, `=` means already collected, and `!` means an error.
 
@@ -59,16 +59,11 @@ Use arrow keys or Home/End to switch projects and navigate menus, Enter to activ
 Open the active project's `···` menu for:
 
 - **Export as JSON**: a versioned document with the project and its links
-- **Export as TXT**: readable titles, URLs, sources and added dates
+- **Export as TXT**: a simple URL list, one link per line
 
-Open the header's `···` workspace menu for:
+Empty projects can also be exported; TXT files are empty when there are no links. TXT contains only URLs, without titles, headers, dates or other metadata. JSON uses `format: "linky-yard"`, `version: 1`, ISO timestamps and two-space indentation. Exports omit settings and internal UI state. Links sort by creation date descending, with deterministic ID tie-breakers.
 
-- **Export all as JSON**: all projects with their nested links
-- **Export all as TXT**: all projects and links in a readable text file
-
-Empty projects and an empty workspace can also be exported. JSON uses `format: "linky-yard"`, `version: 1`, ISO timestamps and two-space indentation. Exports omit settings and internal UI state. Projects sort by creation date ascending, links by creation date descending, with deterministic ID tie-breakers.
-
-Project filenames are normalized safely, e.g. `AI / EU: Research?` becomes `ai-eu-research-linkyard.json`. Full exports use `linkyard-all.json` or `linkyard-all.txt`. Files are UTF-8 and generated with local Blobs; temporary object URLs are released after the download starts. No download permission is required.
+Project filenames are normalized safely, e.g. `AI / EU: Research?` becomes `ai-eu-research-linkyard.json`. Files are UTF-8 and generated with local Blobs; temporary object URLs are released after the download starts. No download permission is required.
 
 ## Architecture
 
@@ -94,7 +89,7 @@ The background service worker is the only writer. It serializes read-modify-writ
 
 Context menus rebuild centrally after project creation, rename, deletion or selection. Identical menu configurations skip unnecessary work; rebuilds are serialized and clear old entries first. The worker registers event listeners synchronously so Chrome can wake it after suspension.
 
-The export service exposes pure serializers and four download operations. Chrome access, storage, business logic, UI and export are separate modules, leaving room for future integrations without implementing a backend or sync now.
+The export service exposes pure serializers and two project download operations. Chrome access, storage, business logic, UI and export are separate modules, leaving room for future integrations without implementing a backend or sync now.
 
 ### Design system
 
@@ -161,7 +156,7 @@ npm run test:browser
 
 The browser suite loads the real side-panel modules with a Chrome API fixture, uses the extension's CSP, and exercises keyboard navigation, project/link actions, validation, notifications, responsive layouts and local fonts/icons. It complements checking the extension inside Chrome.
 
-Native `node:test` suites cover URL handling, project validation and deletion, duplicate detection, moves, search, damaged storage, concurrent writes, restart persistence, context-menu rebuilding, project/workspace exports and packaged design-system assets. The check command validates Manifest V3, necessary permissions, icon dimensions, local assets, CSS font/icon references, design-system integrity, module imports, CSP-compatible HTML and JavaScript syntax.
+Native `node:test` suites cover URL handling, project validation and deletion, duplicate detection, moves, search, damaged storage, concurrent writes, restart persistence, context-menu rebuilding, project exports and packaged design-system assets. The check command validates Manifest V3, necessary permissions, icon dimensions, local assets, CSS font/icon references, design-system integrity, module imports, CSP-compatible HTML and JavaScript syntax.
 
 The original logo is kept intact in `src/assets/images/logo.png`. Committed PNGs are used for the toolbar, extension manager, context menu, side panel and page icon. To regenerate them on macOS, with Swift installed:
 
@@ -171,7 +166,7 @@ swift scripts/generate-icons.swift
 
 This deterministic conversion removes transparent outer padding, preserves the logo's proportions, centers it on square transparent canvases and generates each required size. It is a development utility, not a build step.
 
-For a manual Chrome check: create a project, collect a link with the context menu, collect it again, switch/rename/delete projects, open and move links, search, download all four export formats, use Enter/Escape in dialogs, and restart Chrome to verify stored projects and selection. Resize the panel and create many tabs to verify horizontal scrolling.
+For a manual Chrome check: create a project, collect a link with the context menu, collect it again, switch/rename/delete projects, open and move links, search, download both project export formats, open About from the header, use Enter/Escape in dialogs, and restart Chrome to verify stored projects and selection. Resize the panel and create many tabs to verify horizontal scrolling.
 
 ## Publish to the Chrome Web Store
 

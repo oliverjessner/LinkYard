@@ -52,6 +52,18 @@ test('active project persists across worker recreation', async () => {
   await createWorkspaceService(storage).execute(COMMANDS.SET_ACTIVE_PROJECT, { id: 'p2' });
   assert.equal((await createWorkspaceService(storage).read()).settings.activeProjectId, 'p2');
 });
+test('renamed links persist across worker recreation without changing their URLs', async () => {
+  const storage = memoryStorage();
+  const service = createWorkspaceService(storage);
+  const { link } = await service.execute(COMMANDS.ADD_LINK, {
+    projectId: 'p1', input: { url: 'https://example.com/article#reading', title: 'Original article' },
+  });
+  await service.execute(COMMANDS.RENAME_LINK, { id: link.id, title: '  Renamed article  ' });
+  const after = await createWorkspaceService(storage).read();
+  assert.deepEqual(after.links, [{ ...link, title: 'Renamed article' }]);
+  await assert.rejects(service.execute(COMMANDS.RENAME_LINK, { id: link.id, title: '   ' }), /Give your link a name/);
+  assert.deepEqual(await service.read(), after);
+});
 test('quick add resolves the latest active project inside the write queue', async () => {
   const service = createWorkspaceService(memoryStorage());
   const selection = service.execute(COMMANDS.SET_ACTIVE_PROJECT, { id: 'p2' });

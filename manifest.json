@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "LinkYard",
-    "version": "0.2.1",
+    "version": "0.2.3",
     "description": "Right-click, collect, keep moving. Project-based link collections stored locally, without accounts or tracking.",
     "minimum_chrome_version": "116",
     "permissions": ["storage", "contextMenus", "sidePanel"],

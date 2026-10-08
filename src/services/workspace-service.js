@@ -1,6 +1,6 @@
 import { COMMANDS } from '../constants.js';
 import { createProject, renameProject, deleteProject, setActiveProject } from './project-service.js';
-import { addLink, deleteLink, moveLink } from './link-service.js';
+import { addLink, renameLink, deleteLink, moveLink } from './link-service.js';
 
 export function createWorkspaceService(storage) {
   let tail = Promise.resolve();
@@ -47,6 +47,9 @@ export function createWorkspaceService(storage) {
             workspace = result.workspace;
             break;
           }
+          case COMMANDS.RENAME_LINK:
+            workspace = renameLink(workspace, payload.id, payload.title);
+            break;
           case COMMANDS.DELETE_LINK:
             workspace = deleteLink(workspace, payload.id);
             break;

@@ -5,17 +5,24 @@ export function createModal(dialog, onClose = () => {}) {
   let busy = false;
   let destroyed = false;
   let cleanupTooltips = () => {};
+  let returnFocusResolver = null;
   dialog.classList.add('oj-dialog');
   dialog.setAttribute('data-oj-dialog', '');
   const cleanupDialog = initDialogs(dialog);
   const guardCancel = (event) => { if (busy) event.preventDefault(); };
-  const handleClose = () => onClose();
+  const handleClose = () => {
+    const target = returnFocusResolver?.();
+    returnFocusResolver = null;
+    if (target?.isConnected) target.focus({ preventScroll: true });
+    onClose();
+  };
   dialog.addEventListener('cancel', guardCancel);
   dialog.addEventListener('close', handleClose);
 
-  function open({ title, description, content, fields = [], submitLabel = 'Save', danger = false, onSubmit }) {
+  function open({ title, description, content, fields = [], submitLabel = 'Save', danger = false, onSubmit, resolveReturnFocus }) {
     if (destroyed || dialog.open || busy) return false;
     const opener = document.activeElement;
+    returnFocusResolver = resolveReturnFocus;
     const form = element('form', 'dialog-form');
     const header = element('header', 'oj-dialog-header');
     const heading = element('h2', 'oj-dialog-title', title);
@@ -123,6 +130,7 @@ export function createModal(dialog, onClose = () => {}) {
   function destroy() {
     if (destroyed) return;
     destroyed = true;
+    returnFocusResolver = null;
     dialog.removeEventListener('cancel', guardCancel);
     dialog.removeEventListener('close', handleClose);
     cleanupTooltips();

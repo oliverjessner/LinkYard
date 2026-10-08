@@ -54,6 +54,19 @@ export function deleteLink(workspace, id, now = new Date().toISOString()) {
   };
 }
 
+export function renameLink(workspace, id, title, now = new Date().toISOString()) {
+  const link = workspace.links.find((candidate) => candidate.id === id);
+  if (!link) throw new Error('This link no longer exists.');
+  const cleanTitle = optionalText(title);
+  if (!cleanTitle) throw new Error('Give your link a name.');
+  return {
+    ...workspace,
+    projects: touchProjects(workspace, [link.projectId], now),
+    links: workspace.links.map((candidate) => candidate.id === id
+      ? { ...candidate, title: cleanTitle } : candidate),
+  };
+}
+
 export function moveLink(workspace, id, targetProjectId, now = new Date().toISOString()) {
   const project = getProject(workspace, targetProjectId);
   const link = workspace.links.find((candidate) => candidate.id === id);

@@ -54,7 +54,6 @@ function start() {
 
   for (const node of document.querySelectorAll('[data-icon]')) node.append(icon(node.dataset.icon));
   const cleanupTooltips = initTooltips(document.body);
-  dropdown.bind($('workspace-menu'), getWorkspaceActions);
   dropdown.bind($('project-menu'), getProjectActions);
 
   function run(operation) {
@@ -103,13 +102,14 @@ function start() {
     $('welcome').hidden = Boolean(project);
     $('project-panel').hidden = !project;
     renderTabs(state.projects, state.links, state.activeProjectId);
-    if (!project) { renderLinks([]); return; }
+    if (!project) {
+      $('project-menu').setAttribute('aria-label', 'Actions for selected project');
+      renderLinks([]);
+      return;
+    }
     const total = state.links.filter((link) => link.projectId === project.id).length;
     const visible = getLinksForProject({ links: state.links }, project.id, state.searchQuery);
-    $('project-name').textContent = project.name;
-    $('project-name').title = project.name;
-    $('link-count').textContent = total;
-    $('link-count').setAttribute('aria-label', `${total} ${total === 1 ? 'link' : 'links'}`);
+    $('project-menu').setAttribute('aria-label', `Actions for project ${project.name}`);
     $('list-summary').textContent = state.searchQuery ? `${visible.length} OF ${total} LINKS` : 'COLLECTED LINKS';
     $('empty-links').hidden = total !== 0 || Boolean(state.searchQuery);
     $('no-results').hidden = !state.searchQuery || visible.length !== 0;
@@ -171,6 +171,18 @@ function start() {
     });
   }
 
+  function renameLinkDialog(link) {
+    modal.open({
+      title: 'Rename link',
+      fields: [{ name: 'name', label: 'Name', value: link.title }],
+      resolveReturnFocus: () => $('link-list').querySelector(`[data-link-id="${CSS.escape(link.id)}"] .link-menu-button`) || $('search'),
+      async onSubmit({ name }) {
+        await mutate(COMMANDS.RENAME_LINK, { id: link.id, title: name });
+        toast('Link renamed');
+      },
+    });
+  }
+
   function moveLinkDialog(link) {
     const targets = state.projects.filter((project) => project.id !== link.projectId);
     if (!targets.length) { toast('Create another project to move this link.', { type: 'info' }); return; }
@@ -194,6 +206,7 @@ function start() {
     return [
       { label: 'Open in new tab', onSelect: () => run(() => openLink(link.url)) },
       { label: 'Copy URL', onSelect: () => run(async () => { await navigator.clipboard.writeText(link.url); toast('Link copied'); }) },
+      { label: 'Rename link…', onSelect: () => renameLinkDialog(link) },
       { label: 'Move to project…', disabled: state.projects.length < 2, onSelect: () => moveLinkDialog(link) },
       { separator: true },
       { label: 'Delete link', danger: true, onSelect: () => run(async () => {
@@ -203,10 +216,10 @@ function start() {
     ];
   }
 
-  function exportAction(label, operation, all = false) {
+  function exportAction(label, operation) {
     return { label, onSelect: () => run(async () => {
       await operation();
-      toast(all ? 'Workspace exported' : 'Project exported');
+      toast('Project exported');
     }) };
   }
 
@@ -239,16 +252,6 @@ function start() {
     });
   }
 
-  function getWorkspaceActions() {
-    return [
-      { heading: 'Export all' },
-      exportAction('Export all as JSON', () => exports.exportAllAsJson(), true),
-      exportAction('Export all as TXT', () => exports.exportAllAsTxt(), true),
-      { separator: true },
-      { label: 'About LinkYard', onSelect: showAboutDialog },
-    ];
-  }
-
   async function checkPendingCapture() {
     if (takingPending) { pendingCheckRequested = true; return; }
     takingPending = true;
@@ -278,6 +281,7 @@ function start() {
     }
   }
 
+  $('about-linkyard').addEventListener('click', showAboutDialog);
   $('new-project').addEventListener('click', createProjectDialog);
   $('create-first-project').addEventListener('click', createProjectDialog);
   $('add-link').addEventListener('click', addLinkDialog);

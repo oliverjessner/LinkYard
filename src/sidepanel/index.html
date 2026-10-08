@@ -12,15 +12,16 @@
   </head>
   <body class="oj-app" data-oj-tabs>
     <header class="app-header">
-      <div class="brand oj-inline">
-        <img src="../assets/icons/icon-48.png" width="26" height="26" alt="">
-        <h1 class="oj-heading-2">LinkYard</h1>
-      </div>
-      <button class="oj-icon-button" id="workspace-menu" type="button" aria-label="Workspace menu" data-oj-tooltip="Workspace menu" data-icon="more"></button>
+      <h1 class="oj-heading-2 brand-heading" aria-label="LinkYard">
+        <button class="oj-button oj-button-ghost brand" id="about-linkyard" type="button" aria-label="About LinkYard" data-oj-tooltip="About LinkYard">
+          <img src="../assets/icons/icon-48.png" width="26" height="26" alt="">
+          <span class="oj-heading-2">LinkYard</span>
+        </button>
+      </h1>
     </header>
-    <nav class="projects-bar" aria-label="Projects">
+    <nav class="oj-cluster projects-bar" aria-label="Projects">
       <div class="oj-tab-list project-tabs" id="project-tabs" role="tablist" aria-label="Projects"></div>
-      <button class="oj-icon-button new-project-button" id="new-project" type="button" aria-label="Create project" data-oj-tooltip="Create project" data-icon="plus"></button>
+      <button class="oj-button oj-button-ghost oj-button-compact new-project-button" id="new-project" type="button"><span data-icon="plus"></span>New project</button>
     </nav>
     <main>
       <section id="loading" class="oj-empty-state empty-state" role="status">
@@ -43,16 +44,13 @@
       </section>
       <div id="project-panels">
         <section id="project-panel" hidden>
-          <div class="oj-section-header project-heading">
-            <div class="project-label oj-inline"><h2 class="oj-heading-4" id="project-name"></h2><span class="oj-badge oj-badge-accent oj-mono" id="link-count"></span></div>
-            <button class="oj-icon-button" id="project-menu" type="button" aria-label="Project menu" data-oj-tooltip="Project menu" data-icon="more"></button>
+          <div class="oj-toolbar project-actions">
+            <button class="oj-button oj-button-primary oj-button-compact" id="add-link" type="button"><span data-icon="plus"></span>Add link</button>
+            <button class="oj-icon-button" id="project-menu" type="button" aria-label="Actions for selected project" data-oj-tooltip="Project actions" data-icon="more"></button>
           </div>
           <div class="oj-field search-field">
             <label class="oj-label" for="search">Search links</label>
-            <div class="oj-input-group">
-              <input class="oj-input" id="search" type="search" placeholder="Title, domain or URL…" autocomplete="off">
-              <button class="oj-icon-button" id="add-link" type="button" aria-label="Add link manually" data-oj-tooltip="Add link" data-icon="plus"></button>
-            </div>
+            <input class="oj-input" id="search" type="search" placeholder="Title, domain or URL…" autocomplete="off">
           </div>
           <div class="list-summary oj-kicker"><span id="list-summary">COLLECTED LINKS</span><span>NEWEST FIRST</span></div>
           <ul class="oj-list link-list" id="link-list" aria-label="Collected links"></ul>

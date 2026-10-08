@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addLink, deleteLink, moveLink, getLinksForProject } from '../src/services/link-service.js';
+import { addLink, deleteLink, renameLink, moveLink, getLinksForProject } from '../src/services/link-service.js';
 import { workspace, link, EARLY, LATE } from './fixtures.js';
 
 test('captures normalized URLs, source metadata and timestamps', () => {
@@ -40,6 +40,41 @@ test('same URL can be collected in separate projects', () => {
 test('different query values are separate links', () => {
   const first = addLink(workspace(), 'p1', { url: 'https://example.com?id=1' });
   assert.equal(addLink(first.workspace, 'p1', { url: 'https://example.com?id=2' }).duplicate, false);
+});
+test('rename trims the name, preserves link metadata and touches only its project', () => {
+  const before = workspace();
+  before.links = [{
+    ...link(), sourceUrl: 'https://source.test/discussion', sourceTitle: 'Discussion',
+    note: 'Saved note', tags: ['research'],
+  }, link('l2', 'p2')];
+  const snapshot = structuredClone(before);
+  const after = renameLink(before, 'l1', '  Updated article name  ', LATE);
+  assert.deepEqual(after.links[0], { ...before.links[0], title: 'Updated article name' });
+  assert.equal(after.links[1], before.links[1]);
+  assert.deepEqual(after.projects[0], { ...before.projects[0], updatedAt: LATE });
+  assert.equal(after.projects[1], before.projects[1]);
+  assert.equal(after.settings, before.settings);
+  assert.deepEqual(before, snapshot);
+});
+test('rename rejects empty, whitespace and non-string names without changing the workspace', () => {
+  const before = workspace();
+  before.links = [link()];
+  const snapshot = structuredClone(before);
+  for (const title of ['', '  ', null, undefined, {}, 42]) {
+    assert.throws(() => renameLink(before, 'l1', title), { message: 'Give your link a name.' });
+  }
+  assert.deepEqual(before, snapshot);
+});
+test('rename rejects missing links', () => {
+  assert.throws(() => renameLink(workspace(), 'missing', 'Updated name'), {
+    message: 'This link no longer exists.',
+  });
+});
+test('rename supports long titles consistently with captured links', () => {
+  const before = workspace();
+  before.links = [link()];
+  const title = 'a'.repeat(500);
+  assert.equal(renameLink(before, 'l1', title).links[0].title, title);
 });
 test('move preserves URL, ID, source and creation date', () => {
   const before = workspace();

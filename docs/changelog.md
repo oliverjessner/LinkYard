@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.1
+## 0.2.3
 
 - Adopted oj-designsystem 0.1.0 with its dark theme, Comfortaa/JetBrains Mono fonts, local Font Awesome icons and shared control, list, badge and empty-state styles.
 - Replaced custom tab/menu/dialog/toast behavior with OJ helpers, including automatic keyboard tab activation, menu typeahead, tooltips, focus restoration and stacked dismissible notifications.

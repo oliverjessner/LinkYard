@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  serializeProjectToJson, serializeProjectToTxt, serializeAllToJson, serializeAllToTxt,
+  serializeProjectToJson, serializeProjectToTxt,
   exportFilename, createExportService,
 } from '../src/services/export-service.js';
 import { project, link, workspace, EARLY, LATE, EXPORTED } from './fixtures.js';
@@ -21,12 +21,15 @@ test('project JSON is valid, versioned, indented and contains only project links
 });
 test('empty project exports in JSON and TXT', () => {
   assert.deepEqual(JSON.parse(serializeProjectToJson(project(), [])).links, []);
-  assert.match(serializeProjectToTxt(project(), []), /Project: Research/);
-  assert.match(serializeProjectToTxt(project(), []), /Links: 0/);
+  assert.equal(serializeProjectToTxt(project(), []), '');
 });
-test('TXT includes project, title, URL, source and added timestamp', () => {
-  const text = serializeProjectToTxt(project(), [{ ...link(), sourceUrl: 'https://reddit.com/r/example' }], EXPORTED);
-  for (const part of ['Project: Research', 'Example Article', 'https://example.com/article', 'Source:\nhttps://reddit.com/r/example', `Added:\n${LATE}`]) assert.ok(text.includes(part));
+test('project TXT contains only its URLs, one per line, without metadata', () => {
+  const links = [
+    { ...link(), sourceUrl: 'https://reddit.com/r/example', sourceTitle: 'Source title', note: 'Saved note', tags: ['research'] },
+    link('older', 'p1', 'https://example.com/older', EARLY),
+    link('other', 'p2', 'https://other.test'),
+  ];
+  assert.equal(serializeProjectToTxt(project(), links, EXPORTED), 'https://example.com/article\nhttps://example.com/older');
 });
 test('missing optional metadata is valid and creates no undefined text', () => {
   const item = link();
@@ -35,32 +38,23 @@ test('missing optional metadata is valid and creates no undefined text', () => {
   assert.equal(data.links[0].sourceUrl, null);
   assert.equal(data.links[0].title, 'example.com');
   assert.deepEqual(data.links[0].tags, []);
-  assert.doesNotMatch(serializeProjectToTxt(project(), [item]), /undefined|null|Source:/);
+  assert.equal(serializeProjectToTxt(project(), [item]), 'https://example.com/article');
 });
-test('global JSON and TXT include multiple projects and correct totals', () => {
-  const projects = workspace().projects;
-  const links = [link(), link('second', 'p2', 'https://other.test')];
-  const data = JSON.parse(serializeAllToJson(projects, links, EXPORTED));
-  assert.equal(data.format, 'linky-yard');
-  assert.equal(data.version, 1);
-  assert.equal(data.projects.length, 2);
-  assert.equal(data.projects[1].links[0].url, 'https://other.test');
-  const text = serializeAllToTxt(projects, links, EXPORTED);
-  for (const part of ['Projects: 2', 'Links: 2', 'RESEARCH', 'COMPETITORS', 'https://other.test']) assert.ok(text.includes(part));
-});
-test('exports deterministic project and link ordering', () => {
-  const projects = [project('p2', 'Later', LATE), project('p1', 'Earlier', EARLY)];
-  const links = [link('old', 'p1', 'https://example.com/old', EARLY), link('new', 'p1', 'https://example.com/new', LATE)];
-  const data = JSON.parse(serializeAllToJson(projects, links, EXPORTED));
-  assert.deepEqual(data.projects.map((item) => item.id), ['p1', 'p2']);
-  assert.deepEqual(data.projects[0].links.map((item) => item.id), ['new', 'old']);
-  const text = serializeAllToTxt(projects, links, EXPORTED);
-  assert.ok(text.indexOf('EARLIER') < text.indexOf('LATER'));
-  assert.ok(text.indexOf('/new') < text.indexOf('/old'));
-});
-test('empty workspace exports', () => {
-  assert.deepEqual(JSON.parse(serializeAllToJson([], [])).projects, []);
-  assert.match(serializeAllToTxt([], []), /Projects: 0\nLinks: 0/);
+test('project exports use deterministic link ordering and exclude other projects', () => {
+  const selectedProject = project();
+  const links = [
+    link('old', 'p1', 'https://example.com/old', EARLY),
+    link('new-b', 'p1', 'https://example.com/new-b', LATE),
+    link('second', 'p2', 'https://example.com/old'),
+    link('new-a', 'p1', 'https://example.com/new-a', LATE),
+    link('later', 'p3', 'https://example.com/later'),
+    link('orphan', 'missing', 'https://example.com/orphan'),
+  ];
+  const data = JSON.parse(serializeProjectToJson(selectedProject, links, EXPORTED));
+  assert.deepEqual(data.links.map((item) => item.id), ['new-a', 'new-b', 'old']);
+  assert.equal(serializeProjectToTxt(selectedProject, links), [
+    'https://example.com/new-a', 'https://example.com/new-b', 'https://example.com/old',
+  ].join('\n'));
 });
 test('filename normalization handles whitespace, unsafe symbols and empty slugs', () => {
   assert.equal(exportFilename('OpenAI Research', 'json'), 'openai-research-linkyard.json');
@@ -77,11 +71,9 @@ test('export service reads fresh data and downloads with correct names and MIME 
   const service = createExportService(async () => before, async (...args) => downloads.push(args));
   await service.exportProjectAsJson('p1');
   await service.exportProjectAsTxt('p1');
-  await service.exportAllAsJson();
-  await service.exportAllAsTxt();
   assert.deepEqual(downloads.map((args) => args.slice(1)), [
     ['research-linkyard.json', 'application/json'], ['research-linkyard.txt', 'text/plain'],
-    ['linkyard-all.json', 'application/json'], ['linkyard-all.txt', 'text/plain'],
   ]);
+  assert.equal(downloads[1][0], 'https://example.com/article');
   await assert.rejects(service.exportProjectAsJson('missing'));
 });
