@@ -18,6 +18,7 @@ Collect without breaking your browsing flow. Keep research in projects, browse a
 - Open, copy, rename, move and delete links
 - Create, rename and delete projects
 - Project JSON and TXT exports
+- Import TXT link lists into an existing project
 - oj-designsystem with a compact dark theme, local Comfortaa/JetBrains Mono fonts and Font Awesome icons
 - Keyboard controls, accessible menus, native dialogs and tooltips
 - Stacked notifications with dismiss buttons and timers that pause on hover/focus
@@ -56,6 +57,19 @@ Use arrow keys or Home/End to switch projects and navigate menus, Enter to activ
 
 <img src="src/assets/images/ui.png" alt="LinkYard's Chrome side panel with project tabs, search and collected links" width="360">
 
+## Import
+
+Select a project, open its `···` menu and choose **Import TXT…**. Choose a UTF-8 `.txt` file and click **Import** to add its links to that project. Each non-empty line must contain one complete HTTP/HTTPS URL:
+
+```text
+https://example.com/article
+https://example.org/research
+```
+
+Blank lines and surrounding whitespace are ignored. Existing links and repeated URLs in the file use the same per-project duplicate detection as manually added links. Invalid URLs, unsupported schemes and URLs containing login credentials are skipped. The result shows how many links were imported and how many duplicates or invalid lines were skipped. Titles fall back to the domain; linked pages are not fetched.
+
+Files can be up to 1 MB (1,048,576 bytes) and contain up to 10,000 non-empty lines. Imports append links without replacing existing data, preserve file order in the newest-first list, and save the batch together. Canceling, unreadable files or a failed save leave stored links unchanged. TXT exports can be imported into another project. Processing stays local; no additional Chrome permission is needed.
+
 ## Export
 
 Open the active project's `···` menu for:
@@ -78,7 +92,7 @@ src/
   assets/icons/               Transparent 16/32/48/128 px icons
   background/                 Chrome events, capture and message routing
   storage/                    Local storage adapter and record validation
-  services/                   Projects, links, write queue, context menus, exports
+  services/                   Projects, links, write queue, context menus, imports/exports
   utils/                      URL validation, normalization, dates, downloads
   sidepanel/                  HTML/CSS, UI state and Chrome API client
   components/                 Tabs, keyed link list, dialogs, menus and toasts
@@ -158,7 +172,7 @@ npm run test:browser
 
 The browser suite loads the real side-panel modules with a Chrome API fixture, uses the extension's CSP, and exercises keyboard navigation, project/link actions, validation, notifications, responsive layouts and local fonts/icons. It complements checking the extension inside Chrome.
 
-Native `node:test` suites cover URL handling, project validation and deletion, duplicate detection, moves, search, damaged storage, concurrent writes, restart persistence, context-menu rebuilding, project exports and packaged design-system assets. The check command validates Manifest V3, necessary permissions, icon dimensions, local assets, CSS font/icon references, design-system integrity, module imports, CSP-compatible HTML and JavaScript syntax.
+Native `node:test` suites cover URL handling, project validation and deletion, duplicate detection, moves, search, damaged storage, concurrent writes, restart persistence, context-menu rebuilding, project imports/exports and packaged design-system assets. The check command validates Manifest V3, necessary permissions, icon dimensions, local assets, CSS font/icon references, design-system integrity, module imports, CSP-compatible HTML and JavaScript syntax.
 
 The original logo is kept intact in `src/assets/images/logo.png`. Committed PNGs are used for the toolbar, extension manager, context menu, side panel and page icon. To regenerate them on macOS, with Swift installed:
 
@@ -168,7 +182,7 @@ swift scripts/generate-icons.swift
 
 This deterministic conversion removes transparent outer padding, preserves the logo's proportions, centers it on square transparent canvases and generates each required size. It is a development utility, not a build step.
 
-For a manual Chrome check: create a project, collect a link with the context menu, collect it again, switch/rename/delete projects, open and move links, search, download both project export formats, open About from the header, use Enter/Escape in dialogs, and restart Chrome to verify stored projects and selection. Resize the panel and create many tabs to verify horizontal scrolling.
+For a manual Chrome check: create a project, collect a link with the context menu, collect it again, switch/rename/delete projects, open and move links, search, download both project export formats, import a TXT list into an existing project, open About from the header, use Enter/Escape in dialogs, and restart Chrome to verify stored projects and selection. Resize the panel and create many tabs to verify horizontal scrolling.
 
 ## Publish to the Chrome Web Store
 
@@ -227,7 +241,8 @@ For the Chrome Web Store, publish `PRIVACY.md` at a publicly accessible URL and 
 
 - Chrome only; no Firefox, Safari or mobile support.
 - Chrome's context-menu API does not provide reliable link text. Captured titles fall back to the target domain. Source titles are kept only when Chrome provides them; no broad tab-reading permission is requested.
-- No imports, sync, accounts, sharing, scraping, AI, notes UI or tags UI.
+- Imports support TXT URL lists only; JSON and browser bookmark imports are not supported.
+- No sync, accounts, sharing, scraping, AI, notes UI or tags UI.
 - Data is local to this Chrome profile. Normal Chrome local-storage quotas apply.
 - URL normalization preserves query parameters, including tracking parameters; it only removes fragments, normalizes the hostname/default ports, and treats trailing path slashes as equivalent.
 

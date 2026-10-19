@@ -34,6 +34,7 @@ main { flex: 1; min-width: 0; padding: var(--oj-space-5) var(--oj-space-5) var(-
 .project-dialog { max-inline-size: 420px; }
 .dialog-body { display: grid; gap: var(--oj-space-4); }
 .dialog-description { overflow-wrap: anywhere; }
+.dialog-body input[type="file"] { min-width: 0; width: 100%; }
 .menu-heading { padding: var(--oj-space-2) var(--oj-space-3); }
 
 @media (max-width: 400px) {

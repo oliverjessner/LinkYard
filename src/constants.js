@@ -16,6 +16,7 @@ export const COMMANDS = Object.freeze({
   DELETE_PROJECT: 'deleteProject',
   SET_ACTIVE_PROJECT: 'setActiveProject',
   ADD_LINK: 'addLink',
+  IMPORT_PROJECT_TXT: 'importProjectTxt',
   RENAME_LINK: 'renameLink',
   DELETE_LINK: 'deleteLink',
   MOVE_LINK: 'moveLink',
@@ -29,6 +30,8 @@ export const MENU_IDS = Object.freeze({
   NEW_PROJECT: 'linkyard/new-project',
 });
 export const MAX_PROJECT_NAME = 100;
+export const MAX_TXT_IMPORT_BYTES = 1024 * 1024;
+export const MAX_TXT_IMPORT_LINES = 10_000;
 export const PENDING_CAPTURE_MAX_AGE = 5 * 60 * 1000;
 export const EXPORT_FORMAT = 'linky-yard';
 export const EXPORT_VERSION = 1;

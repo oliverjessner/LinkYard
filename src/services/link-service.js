@@ -20,27 +20,55 @@ function touchProjects(workspace, ids, now) {
     ? { ...project, updatedAt: now } : project);
 }
 
-export function addLink(workspace, projectId, input, { id = crypto.randomUUID(), now = new Date().toISOString() } = {}) {
-  const project = getProject(workspace, projectId);
+function createLink(projectId, input, { id = crypto.randomUUID(), now = new Date().toISOString() } = {}) {
   const url = validateUrl(input?.url).href;
   const normalizedUrl = normalizeUrl(url);
-  const duplicate = findDuplicate(workspace, projectId, normalizedUrl);
-  if (duplicate) return { workspace, link: duplicate, duplicate: true, project };
   const domain = getDomain(url);
-  const link = {
+  return {
     id, projectId, url, normalizedUrl,
     title: optionalText(input.title) || domain || url,
     sourceUrl: optionalText(input.sourceUrl),
     sourceTitle: optionalText(input.sourceTitle),
     domain, createdAt: now, note: null, tags: [],
   };
+}
+
+export function addLink(workspace, projectId, input, options = {}) {
+  const project = getProject(workspace, projectId);
+  const link = createLink(projectId, input, options);
+  const duplicate = findDuplicate(workspace, projectId, link.normalizedUrl);
+  if (duplicate) return { workspace, link: duplicate, duplicate: true, project };
   return {
     workspace: {
       ...workspace,
-      projects: touchProjects(workspace, [projectId], now),
+      projects: touchProjects(workspace, [projectId], link.createdAt),
       links: [...workspace.links, link],
     },
     link, duplicate: false, project,
+  };
+}
+
+export function addLinks(workspace, projectId, inputs, now = new Date().toISOString()) {
+  const project = getProject(workspace, projectId);
+  const knownUrls = new Set(workspace.links.filter((link) => link.projectId === projectId)
+    .map((link) => link.normalizedUrl));
+  const links = [];
+  let duplicates = 0;
+  for (const input of inputs) {
+    // Keep file order in the newest-first list, including after a TXT round trip.
+    const createdAt = new Date(Date.parse(now) - links.length).toISOString();
+    const link = createLink(projectId, input, { now: createdAt });
+    if (knownUrls.has(link.normalizedUrl)) { duplicates += 1; continue; }
+    knownUrls.add(link.normalizedUrl);
+    links.push(link);
+  }
+  return {
+    workspace: links.length ? {
+      ...workspace,
+      projects: touchProjects(workspace, [projectId], now),
+      links: [...workspace.links, ...links],
+    } : workspace,
+    project, added: links.length, duplicates,
   };
 }
 

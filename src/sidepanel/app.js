@@ -1,4 +1,4 @@
-import { COMMANDS, MAX_PROJECT_NAME } from '../constants.js';
+import { COMMANDS, MAX_PROJECT_NAME, MAX_TXT_IMPORT_BYTES } from '../constants.js';
 import { command, readWorkspace, getVersion, openLink, subscribe } from './chrome-client.js';
 import { createProjectTabs } from '../components/project-tabs.js';
 import { createLinkList } from '../components/link-list.js';
@@ -185,6 +185,32 @@ function start() {
     });
   }
 
+  function importTxtDialog(project) {
+    modal.open({
+      title: 'Import TXT',
+      description: `Add links to “${project.name}” from a UTF-8 .txt file, one HTTP/HTTPS URL per line. Empty lines are ignored; duplicates and invalid URLs are skipped. Up to 1 MB and 10,000 links.`,
+      fields: [{ name: 'file', label: 'TXT file', type: 'file', accept: '.txt,text/plain' }],
+      submitLabel: 'Import',
+      async onSubmit({ file }) {
+        if (!(file instanceof File) || !/\.txt$/i.test(file.name)) throw new Error('Choose a .txt file.');
+        if (file.size > MAX_TXT_IMPORT_BYTES) throw new Error('TXT files can be up to 1 MB.');
+        let text;
+        try {
+          text = new TextDecoder('utf-8', { fatal: true }).decode(await file.arrayBuffer());
+        } catch {
+          throw new Error('Could not read this file. Choose a UTF-8 TXT file.');
+        }
+        const result = await mutate(COMMANDS.IMPORT_PROJECT_TXT, { projectId: project.id, text });
+        const skipped = [];
+        if (result.duplicates) skipped.push(`${result.duplicates} ${result.duplicates === 1 ? 'duplicate' : 'duplicates'}`);
+        if (result.invalid) skipped.push(`${result.invalid} invalid ${result.invalid === 1 ? 'line' : 'lines'}`);
+        toast(`Imported ${result.added} ${result.added === 1 ? 'link' : 'links'} into ${project.name}.${skipped.length ? ` Skipped ${skipped.join(' and ')}.` : ''}`, {
+          type: skipped.length ? 'warning' : 'success', duration: 8000,
+        });
+      },
+    });
+  }
+
   function moveLinkDialog(link) {
     const targets = state.projects.filter((project) => project.id !== link.projectId);
     if (!targets.length) { toast('Create another project to move this link.', { type: 'info' }); return; }
@@ -249,6 +275,8 @@ function start() {
     return [
       { label: 'Rename project…', onSelect: () => renameProjectDialog(project) },
       { label: 'Open all links', disabled: openingLinks || !state.links.some((link) => link.projectId === project.id), onSelect: () => run(() => openAllLinks(project)) },
+      { separator: true },
+      { label: 'Import TXT…', onSelect: () => importTxtDialog(project) },
       { separator: true }, { heading: 'Export project' },
       exportAction('Export as JSON', () => exports.exportProjectAsJson(project.id)),
       exportAction('Export as TXT', () => exports.exportProjectAsTxt(project.id)),

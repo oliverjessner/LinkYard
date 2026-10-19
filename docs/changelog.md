@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Added **Import TXT…** to each project's menu for local UTF-8 files with one HTTP/HTTPS URL per line.
+- Imports append links in file order, ignore blank lines, skip duplicate/invalid URLs with result counts, and save each batch together without changing other projects.
+- Added import validation, persistence/concurrency and browser checks, including file errors, retry after storage failure and narrow-panel dialogs.
+
 ## 0.2.3
 
 - Adopted oj-designsystem 0.1.0 with its dark theme, Comfortaa/JetBrains Mono fonts, local Font Awesome icons and shared control, list, badge and empty-state styles.

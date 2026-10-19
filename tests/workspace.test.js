@@ -76,3 +76,61 @@ test('unknown commands are rejected without storage changes', async () => {
   await assert.rejects(service.execute('unknown'));
   assert.deepEqual(await service.read(), workspace());
 });
+
+test('TXT import saves a batch once and persists it across worker recreation', async () => {
+  const storage = memoryStorage();
+  const save = storage.save;
+  let writes = 0;
+  storage.save = async (value) => { writes += 1; await save(value); };
+  const service = createWorkspaceService(storage);
+  const result = await service.execute(COMMANDS.IMPORT_PROJECT_TXT, {
+    projectId: 'p2', text: 'https://first.test\nhttps://second.test\ninvalid\nhttps://first.test/#same',
+  });
+  assert.equal(result.added, 2);
+  assert.equal(result.duplicates, 1);
+  assert.equal(result.invalid, 1);
+  assert.equal(writes, 1);
+  const persisted = await createWorkspaceService(storage).read();
+  assert.deepEqual(persisted, result.workspace);
+  assert.ok(persisted.links.every((item) => item.projectId === 'p2'));
+  assert.equal(persisted.settings.activeProjectId, 'p1');
+  const repeat = await service.execute(COMMANDS.IMPORT_PROJECT_TXT, { projectId: 'p2', text: 'https://first.test/' });
+  assert.equal(repeat.added, 0);
+  assert.equal(writes, 1);
+  await service.execute(COMMANDS.IMPORT_PROJECT_TXT, { projectId: 'p2', text: 'invalid' });
+  assert.equal(writes, 1);
+});
+
+test('TXT import and concurrent captures share the write queue and deduplication', async () => {
+  const service = createWorkspaceService(memoryStorage());
+  const results = await Promise.all([
+    service.execute(COMMANDS.ADD_LINK, { projectId: 'p1', input: { url: 'https://first.test' } }),
+    service.execute(COMMANDS.IMPORT_PROJECT_TXT, { projectId: 'p1', text: 'https://first.test/#same\nhttps://second.test' }),
+    service.execute(COMMANDS.ADD_LINK, { projectId: 'p1', input: { url: 'https://second.test' } }),
+  ]);
+  assert.equal(results[1].added, 1);
+  assert.equal(results[1].duplicates, 1);
+  assert.equal(results[2].duplicate, true);
+  assert.equal((await service.read()).links.length, 2);
+});
+
+test('failed TXT import saves leave no partial links and can be retried', async () => {
+  const storage = memoryStorage();
+  const save = storage.save;
+  storage.save = async () => { throw new Error('Storage full'); };
+  const service = createWorkspaceService(storage);
+  const payload = { projectId: 'p1', text: 'https://first.test\nhttps://second.test' };
+  await assert.rejects(service.execute(COMMANDS.IMPORT_PROJECT_TXT, payload), /Storage full/);
+  assert.deepEqual(await service.read(), workspace());
+  storage.save = save;
+  assert.equal((await service.execute(COMMANDS.IMPORT_PROJECT_TXT, payload)).added, 2);
+});
+
+test('TXT import never falls back to a different project if its destination was deleted', async () => {
+  const service = createWorkspaceService(memoryStorage());
+  await service.execute(COMMANDS.DELETE_PROJECT, { id: 'p1' });
+  const before = await service.read();
+  await assert.rejects(service.execute(COMMANDS.IMPORT_PROJECT_TXT, { projectId: 'p1', text: 'https://first.test' }));
+  await assert.rejects(service.execute(COMMANDS.IMPORT_PROJECT_TXT, { text: 'https://first.test' }));
+  assert.deepEqual(await service.read(), before);
+});

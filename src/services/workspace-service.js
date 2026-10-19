@@ -1,6 +1,7 @@
 import { COMMANDS } from '../constants.js';
 import { createProject, renameProject, deleteProject, setActiveProject } from './project-service.js';
 import { addLink, renameLink, deleteLink, moveLink } from './link-service.js';
+import { importProjectFromTxt } from './import-service.js';
 
 export function createWorkspaceService(storage) {
   let tail = Promise.resolve();
@@ -49,6 +50,11 @@ export function createWorkspaceService(storage) {
           }
           case COMMANDS.RENAME_LINK:
             workspace = renameLink(workspace, payload.id, payload.title);
+            break;
+          case COMMANDS.IMPORT_PROJECT_TXT:
+            result = importProjectFromTxt(workspace, payload.projectId, payload.text);
+            workspace = result.workspace;
+            if (!result.added) return result;
             break;
           case COMMANDS.DELETE_LINK:
             workspace = deleteLink(workspace, payload.id);

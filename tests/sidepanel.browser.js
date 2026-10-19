@@ -21,6 +21,7 @@ const test = base.extend({
     async function load(seed = {}) {
       await page.addInitScript(async ({ projects = [], active = 0 }) => {
         const data = {};
+        let rejectNextWrite = false;
         const storageListeners = new Set();
         const messageListeners = new Set();
         const event = (listeners) => ({
@@ -32,6 +33,10 @@ const test = base.extend({
             return Object.fromEntries(keys.filter((key) => key in data).map((key) => [key, structuredClone(data[key])]));
           },
           async set(values) {
+            if (rejectNextWrite) {
+              rejectNextWrite = false;
+              throw new Error('Storage full in browser regression.');
+            }
             const changes = {};
             for (const [key, value] of Object.entries(values)) {
               changes[key] = { oldValue: structuredClone(data[key]), newValue: structuredClone(value) };
@@ -100,6 +105,8 @@ const test = base.extend({
         };
         window.__linkyardTest = {
           read: async () => (await ready).read(),
+          execute: async (command, payload) => (await ready).execute(command, payload),
+          failNextWrite: () => { rejectNextWrite = true; },
           openedUrls,
           openedTabs,
           failNextOpen: () => { rejectNextOpen = true; },
@@ -336,6 +343,117 @@ test('Open all links opens the whole selected project in background tabs one sec
   await page.getByRole('button', { name: 'Actions for project Archive', exact: true }).click();
   await expect(openAll).toBeEnabled();
   await page.keyboard.press('Escape');
+});
+
+test('TXT import adds only to its project and reports skipped duplicates and invalid lines', async ({ page, app }) => {
+  await app.load({ projects: [
+    { name: 'Research', links: [{ url: 'https://existing.test/article', title: 'Existing article' }] },
+    { name: 'Archive', links: [{ url: 'https://shared.test/article', title: 'Archived article' }] },
+  ] });
+  const before = await app.read();
+  await openProjectAction(page, 'Import TXT…');
+  const dialog = page.getByRole('dialog', { name: 'Import TXT', exact: true });
+  await expect(dialog).toContainText('Add links to “Research”');
+  const file = dialog.getByLabel('TXT file', { exact: true });
+  await expect(file).toBeFocused();
+  await expect(file).toHaveAttribute('accept', '.txt,text/plain');
+  await file.setInputFiles({ name: 'links.TXT', mimeType: 'text/plain', buffer: Buffer.from([
+    '\uFEFF https://first.test/one#reading ', '', 'https://existing.test/article/#same',
+    'https://first.test/one', 'javascript:alert(1)', 'not a URL', 'https://shared.test/article',
+  ].join('\r\n')) });
+  await submitDialog(page, 'Import');
+  await expect(page.locator('#project-menu')).toBeFocused();
+  await expect(page.locator('#link-list > li')).toHaveCount(3);
+  await expect(page.getByRole('tab', { name: 'Research 3', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('.oj-toast-message')).toHaveText('Imported 2 links into Research. Skipped 2 duplicates and 2 invalid lines.');
+  const after = await app.read();
+  expect(after.links.slice(0, 2)).toEqual(before.links);
+  expect(after.links.slice(2).map((item) => item.projectId)).toEqual([before.projects[0].id, before.projects[0].id]);
+  expect(after.projects[1]).toEqual(before.projects[1]);
+  expect(await page.evaluate(() => window.__linkyardTest.openedUrls)).toEqual([]);
+
+  await openProjectAction(page, 'Import TXT…');
+  await file.setInputFiles({ name: 'repeat.txt', mimeType: 'text/plain', buffer: Buffer.from('https://first.test/one') });
+  await submitDialog(page, 'Import');
+  await expect(page.locator('.oj-toast-message').last()).toHaveText('Imported 0 links into Research. Skipped 1 duplicate.');
+  expect(await app.read()).toEqual(after);
+});
+
+test('TXT import validates files and lets users retry a failed storage write without partial imports', async ({ page, app }) => {
+  await app.load({ projects: [{ name: 'Research' }] });
+  const before = await app.read();
+  await openProjectAction(page, 'Import TXT…');
+  const dialog = page.getByRole('dialog', { name: 'Import TXT', exact: true });
+  const file = dialog.getByLabel('TXT file', { exact: true });
+  const submit = dialog.getByRole('button', { name: 'Import', exact: true });
+  await submit.click();
+  await expect(file).toHaveAttribute('aria-invalid', 'true');
+  for (const [name, buffer, message] of [
+    ['links.json', Buffer.from('https://first.test'), 'Choose a .txt file.'],
+    ['empty.txt', Buffer.from(' \r\n\n'), 'This TXT file contains no links.'],
+    ['large.txt', Buffer.alloc(1024 * 1024 + 1, 32), 'TXT files can be up to 1 MB.'],
+    ['encoding.txt', Buffer.from([0xff, 0xfe, 0x68, 0x00]), 'Could not read this file. Choose a UTF-8 TXT file.'],
+  ]) {
+    await file.setInputFiles({ name, mimeType: 'text/plain', buffer });
+    app.expectError(message);
+    await submit.click();
+    await expect(dialog.getByRole('alert')).toHaveText(message);
+    await expect(file).toBeFocused();
+    expect(await app.read()).toEqual(before);
+  }
+  await file.setInputFiles({ name: 'links.txt', mimeType: 'text/plain', buffer: Buffer.from('https://first.test\nhttps://second.test') });
+  app.expectError('Storage full in browser regression.');
+  await page.evaluate(() => window.__linkyardTest.failNextWrite());
+  await submit.click();
+  await expect(dialog.getByRole('alert')).toHaveText('Storage full in browser regression.');
+  await expect(submit).toBeEnabled();
+  expect(await app.read()).toEqual(before);
+  await submitDialog(page, 'Import');
+  await expect(page.locator('#link-list > li')).toHaveCount(2);
+  await expect(page.locator('.oj-toast-message')).toHaveText('Imported 2 links into Research.');
+});
+
+test('TXT import keeps the chosen destination when another panel switches the active project', async ({ page, app }) => {
+  await app.load({ projects: [{ name: 'Research' }, { name: 'Archive' }] });
+  const before = await app.read();
+  await openProjectAction(page, 'Import TXT…');
+  await page.getByLabel('TXT file', { exact: true }).setInputFiles({
+    name: 'links.txt', mimeType: 'text/plain', buffer: Buffer.from('https://first.test'),
+  });
+  await page.evaluate((id) => window.__linkyardTest.execute('setActiveProject', { id }), before.projects[1].id);
+  await expect(page.getByRole('tab', { name: 'Archive 0', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await submitDialog(page, 'Import');
+  const after = await app.read();
+  expect(after.links).toHaveLength(1);
+  expect(after.links[0].projectId).toBe(before.projects[0].id);
+  expect(after.settings.activeProjectId).toBe(before.projects[1].id);
+  await expect(page.locator('#link-list > li')).toHaveCount(0);
+  await expect(page.locator('.oj-toast-message')).toHaveText('Imported 1 link into Research.');
+});
+
+test('TXT import dialog fits narrow panels and cancellation never changes stored links', async ({ page, app }) => {
+  await app.load({ projects: [{ name: 'Research project '.repeat(7).slice(0, 100) }] });
+  const before = await app.read();
+  await mkdir('screenshots', { recursive: true });
+  for (const width of [260, 360]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.locator('#project-menu').focus();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('i');
+    await expect(page.getByRole('menuitem', { name: 'Import TXT…', exact: true })).toBeFocused();
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('dialog', { name: 'Import TXT', exact: true });
+    await dialog.getByLabel('TXT file', { exact: true }).setInputFiles({
+      name: `${'a-long-file-name-'.repeat(8)}.txt`, mimeType: 'text/plain', buffer: Buffer.from('https://first.test'),
+    });
+    expect(await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: `screenshots/linkyard-txt-import-${width}.png`, fullPage: true });
+    if (width === 260) await escapeDialog(page);
+    else await submitDialog(page, 'Cancel');
+    await expect(page.locator('#project-menu')).toBeFocused();
+    expect(await app.read()).toEqual(before);
+  }
 });
 
 test('Open all links is disabled for an empty project and recovers after a failed opening', async ({ page, app }) => {

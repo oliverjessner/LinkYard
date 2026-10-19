@@ -55,6 +55,7 @@ export function createModal(dialog, onClose = () => {}) {
       } else {
         input = element('input', 'oj-input');
         input.type = field.type || 'text';
+        if (field.accept) input.accept = field.accept;
         input.placeholder = field.placeholder || '';
         if (field.maxLength) input.maxLength = field.maxLength;
         input.autocomplete = field.type === 'url' ? 'url' : 'off';
@@ -123,7 +124,7 @@ export function createModal(dialog, onClose = () => {}) {
     first.autofocus = true;
     cleanupTooltips = initTooltips(dialog);
     openDialog(dialog, { trigger: opener });
-    if (first instanceof HTMLInputElement && first.value) first.select();
+    if (first instanceof HTMLInputElement && ['text', 'url'].includes(first.type) && first.value) first.select();
     return true;
   }
 

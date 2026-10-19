@@ -1,6 +1,6 @@
 # LinkYard Privacy Policy
 
-Last updated: October 5, 2026
+Last updated: October 19, 2026
 
 LinkYard is a Chrome extension for collecting and organizing web links into projects. It processes your collections locally in your Chrome profile. No account is required, and LinkYard does not upload your collections to the developer or an external server.
 
@@ -20,6 +20,7 @@ When you use LinkYard, it processes:
 - **Source information:** when you save a link through the context menu, the URL of the page where you selected it and the page title when Chrome makes it available.
 - **Preferences:** the identifier of your active project.
 - **Temporary input:** a selected link and its source information while the new-project dialog opens, and text you enter into forms or search.
+- **TXT imports:** the contents of a TXT file you explicitly select to import links into a project. The file is read locally; accepted URLs become saved links. The original file and its name are not stored in your collection.
 
 Project names, titles and URLs may contain personal information depending on what you choose to save. Saved URLs can include query parameters. LinkYard does not automatically remove those parameters.
 
@@ -37,7 +38,7 @@ Projects, saved links and the active-project preference are stored in `chrome.st
 
 When you choose **New Project…** from the context menu, the selected link is temporarily held in Chrome's in-memory `chrome.storage.session`. That entry is removed when the side panel retrieves it; entries older than five minutes are discarded instead of used. Chrome also clears this session storage when the extension is disabled, reloaded or updated, or when the browser restarts.
 
-Search text and form input are held in the side panel's memory rather than saved as a search history. Submitted project and link details become part of your stored collection.
+Search text, form input and selected import file contents are processed in memory rather than saved as a history or file archive. Submitted project and link details, including accepted URLs from TXT imports, become part of your stored collection.
 
 LinkYard does not add its own encryption to stored collections or exported files. Their protection depends on your browser profile, device security and any backups you create.
 
