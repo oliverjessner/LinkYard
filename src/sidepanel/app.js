@@ -35,6 +35,7 @@ function start() {
     state.activeProjectId = id;
     state.searchQuery = '';
     $('search').value = '';
+    $('project-results').scrollTop = 0;
     render();
     run(async () => {
       try {
@@ -76,6 +77,7 @@ function start() {
     if (activeId !== state.activeProjectId) {
       state.searchQuery = '';
       $('search').value = '';
+      $('project-results').scrollTop = 0;
       dropdown.close(false);
     }
     state.projects = workspace.projects;
@@ -105,6 +107,7 @@ function start() {
     $('collect-external-links').disabled = collectingLinks || !project;
     $('collect-external-links').setAttribute('aria-busy', String(collectingLinks));
     $('welcome').hidden = Boolean(project);
+    $('project-panels').hidden = !project;
     $('project-panel').hidden = !project;
     renderTabs(state.projects, state.links, state.activeProjectId);
     if (!project) {
@@ -360,6 +363,7 @@ function start() {
       $('loading').hidden = true;
       $('welcome').hidden = true;
       $('project-panel').hidden = true;
+      $('project-panels').hidden = true;
       $('error-state').hidden = false;
       $('startup-error').textContent = error.message || 'Reload the extension and try again.';
     }

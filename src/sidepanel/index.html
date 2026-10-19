@@ -42,30 +42,32 @@
         </div>
         <p class="oj-small oj-muted workflow-hint">Right-click a link. Add it. Keep moving.</p>
       </section>
-      <div id="project-panels">
+      <div id="project-panels" hidden>
         <section id="project-panel" hidden>
           <div class="oj-toolbar project-actions">
             <button class="oj-button oj-button-primary oj-button-compact" id="add-link" type="button"><span data-icon="plus"></span>Add link</button>
+            <button class="oj-button oj-button-secondary oj-button-compact collect-links-button" id="collect-external-links" type="button"><span data-icon="arrow"></span><span>Collect external links</span></button>
             <button class="oj-icon-button" id="project-menu" type="button" aria-label="Actions for selected project" data-oj-tooltip="Project actions" data-icon="more"></button>
-            <button class="oj-button oj-button-secondary oj-button-compact collect-links-button" id="collect-external-links" type="button"><span data-icon="arrow"></span>Collect external links</button>
           </div>
           <div class="oj-field search-field">
             <label class="oj-label" for="search">Search links</label>
             <input class="oj-input" id="search" type="search" placeholder="Title, domain or URL…" autocomplete="off">
           </div>
           <div class="list-summary oj-kicker"><span id="list-summary">COLLECTED LINKS</span><span>NEWEST FIRST</span></div>
-          <ul class="oj-list link-list" id="link-list" aria-label="Collected links"></ul>
-          <section id="empty-links" class="oj-empty-state project-empty" hidden>
-            <div class="oj-empty-state-icon empty-symbol" data-icon="link"></div>
-            <h3 class="oj-empty-state-title">Good research starts with a link.</h3>
-            <p class="oj-empty-state-description">Right-click a link while browsing to collect it here, or add one yourself.</p>
-            <div class="oj-empty-state-actions"><button class="oj-button oj-button-secondary" id="add-first-link" type="button">Add a link</button></div>
-          </section>
-          <section id="no-results" class="oj-empty-state project-empty" hidden>
-            <h3 class="oj-empty-state-title">No matching links.</h3>
-            <p class="oj-empty-state-description">Try another title, domain or URL.</p>
-            <div class="oj-empty-state-actions"><button class="oj-button oj-button-secondary" id="clear-search" type="button">Clear search</button></div>
-          </section>
+          <div class="project-results" id="project-results" role="region" aria-label="Project links" tabindex="0">
+            <ul class="oj-list link-list" id="link-list" aria-label="Collected links"></ul>
+            <section id="empty-links" class="oj-empty-state project-empty" hidden>
+              <div class="oj-empty-state-icon empty-symbol" data-icon="link"></div>
+              <h3 class="oj-empty-state-title">Good research starts with a link.</h3>
+              <p class="oj-empty-state-description">Right-click a link while browsing to collect it here, or add one yourself.</p>
+              <div class="oj-empty-state-actions"><button class="oj-button oj-button-secondary" id="add-first-link" type="button">Add a link</button></div>
+            </section>
+            <section id="no-results" class="oj-empty-state project-empty" hidden>
+              <h3 class="oj-empty-state-title">No matching links.</h3>
+              <p class="oj-empty-state-description">Try another title, domain or URL.</p>
+              <div class="oj-empty-state-actions"><button class="oj-button oj-button-secondary" id="clear-search" type="button">Clear search</button></div>
+            </section>
+          </div>
           <p id="search-status" class="oj-sr-only" role="status" aria-live="polite"></p>
         </section>
       </div>

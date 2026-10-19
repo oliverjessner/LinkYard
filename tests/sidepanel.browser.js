@@ -886,6 +886,60 @@ test('the header opens About, OJ menus support keyboard dismissal and duplicate 
   expect((await app.read()).links).toHaveLength(1);
 });
 
+test('only project results scroll while the heading and adjacent collection actions stay fixed', async ({ page, app }) => {
+  await app.load({ projects: [
+    { name: 'Research', links: Array.from({ length: 40 }, (_, index) => ({
+      url: `https://research.test/article/${index}`, title: `Research article ${index + 1}`,
+    })) },
+    { name: 'Archive' },
+  ] });
+  const results = page.getByRole('region', { name: 'Project links', exact: true });
+  const fixedSelectors = ['.app-header', '.projects-bar', '.project-actions', '.search-field', '.list-summary', '.app-footer'];
+  await mkdir('screenshots', { recursive: true });
+  for (const [width, height] of [[260, 540], [360, 800], [1024, 600]]) {
+    await page.setViewportSize({ width, height });
+    await results.evaluate((node) => { node.scrollTop = 0; });
+    const before = await Promise.all(fixedSelectors.map((selector) => page.locator(selector).boundingBox()));
+    const add = await page.locator('#add-link').boundingBox();
+    const collect = await page.locator('#collect-external-links').boundingBox();
+    const menu = await page.locator('#project-menu').boundingBox();
+    expect(collect.x).toBeGreaterThanOrEqual(add.x + add.width);
+    expect(collect.x + collect.width).toBeLessThanOrEqual(menu.x);
+    expect(collect.y).toBeLessThan(add.y + add.height);
+    expect(collect.y + collect.height).toBeGreaterThan(add.y);
+    const viewport = await results.boundingBox();
+    const summary = await page.locator('.list-summary').boundingBox();
+    expect(viewport.y).toBeGreaterThanOrEqual(summary.y + summary.height);
+    expect(viewport.height).toBeGreaterThan(80);
+    expect(viewport.y + viewport.height).toBeLessThanOrEqual(before.at(-1).y);
+    await results.hover();
+    await page.mouse.wheel(0, 700);
+    await expect.poll(() => results.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+    expect(await Promise.all(fixedSelectors.map((selector) => page.locator(selector).boundingBox()))).toEqual(before);
+    expect(await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY,
+      overflow: document.documentElement.scrollWidth > window.innerWidth,
+    }))).toEqual({ x: 0, y: 0, overflow: false });
+    if (width <= 360) await page.screenshot({ path: `screenshots/linkyard-fixed-controls-${width}.png`, fullPage: true });
+
+    const lastLink = page.locator('#link-list a').last();
+    await lastLink.focus();
+    const lastBounds = await lastLink.boundingBox();
+    expect(lastBounds.y).toBeGreaterThanOrEqual(viewport.y);
+    expect(lastBounds.y + lastBounds.height).toBeLessThanOrEqual(viewport.y + viewport.height + 1);
+    expect(await Promise.all(fixedSelectors.map((selector) => page.locator(selector).boundingBox()))).toEqual(before);
+    await page.locator('.link-menu-button').last().click();
+    const dropdown = await page.getByRole('menu').boundingBox();
+    expect(dropdown.y).toBeGreaterThanOrEqual(0);
+    expect(dropdown.y + dropdown.height).toBeLessThanOrEqual(height);
+    await page.keyboard.press('Escape');
+  }
+  await page.getByRole('tab', { name: 'Archive 0', exact: true }).click();
+  await expect(page.locator('#empty-links')).toBeVisible();
+  expect(await results.evaluate((node) => node.scrollTop)).toBe(0);
+  await page.getByRole('tab', { name: 'Research 40', exact: true }).click();
+  expect(await results.evaluate((node) => node.scrollTop)).toBe(0);
+});
+
 test('narrow and wide panels handle long content, local assets and stacked notifications', async ({ page, app }) => {
   const longName = 'A research project with a deliberately long name '.repeat(2).slice(0, 100);
   await app.load({ projects: [

@@ -54,7 +54,9 @@ Links appear newest first. The link's menu offers **Open in new tab**, **Copy UR
 
 The project menu also offers **Open all links**. It opens all links in that project in background tabs, newest first, with one second between openings. This includes links hidden by the current search. The action is disabled for empty projects and while a batch is opening.
 
-Use **Collect external links** below **Add link** to collect HTTP/HTTPS links from the current tab into the selected project. Link text becomes the title when available, and the page URL/title are saved as source information. Duplicate links are skipped and the result shows how many links were added.
+Use **Collect external links** next to **Add link** to collect HTTP/HTTPS links from the current tab into the selected project. Link text becomes the title when available, and the page URL/title are saved as source information. Duplicate links are skipped and the result shows how many links were added.
+
+The header, project tabs, actions, search and **COLLECTED LINKS / NEWEST FIRST** row stay at the top. Only the results below that row scroll; the storage footer remains at the bottom of the panel.
 
 Open LinkYard using its toolbar icon on the page you want to collect from. Chrome's temporary [activeTab access](https://developer.chrome.com/docs/extensions/develop/concepts/activeTab) may need to be renewed with another toolbar click after switching tabs or navigating to another website. Chrome settings, the Chrome Web Store and other protected pages cannot be read.
 
