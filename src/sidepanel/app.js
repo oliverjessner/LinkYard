@@ -1,5 +1,5 @@
 import { COMMANDS, MAX_PROJECT_NAME, MAX_TXT_IMPORT_BYTES } from '../constants.js';
-import { command, readWorkspace, getVersion, openLink, subscribe } from './chrome-client.js';
+import { command, readWorkspace, getVersion, openLink, collectActiveTabLinks, subscribe } from './chrome-client.js';
 import { createProjectTabs } from '../components/project-tabs.js';
 import { createLinkList } from '../components/link-list.js';
 import { createDropdown } from '../components/dropdown.js';
@@ -21,6 +21,7 @@ function start() {
   let takingPending = false;
   let pendingCheckRequested = false;
   let openingLinks = false;
+  let collectingLinks = false;
   let disposed = false;
   const toast = createToast(document.body);
   const dropdown = createDropdown($('dropdown'));
@@ -101,6 +102,8 @@ function start() {
 
   function render() {
     const project = activeProject();
+    $('collect-external-links').disabled = collectingLinks || !project;
+    $('collect-external-links').setAttribute('aria-busy', String(collectingLinks));
     $('welcome').hidden = Boolean(project);
     $('project-panel').hidden = !project;
     renderTabs(state.projects, state.links, state.activeProjectId);
@@ -285,6 +288,38 @@ function start() {
     ];
   }
 
+  async function collectExternalLinks(project) {
+    if (collectingLinks || disposed) return;
+    const button = $('collect-external-links');
+    const restoreFocus = document.activeElement === button;
+    collectingLinks = true;
+    render();
+    try {
+      const capture = await collectActiveTabLinks();
+      if (disposed) return;
+      const result = await mutate(COMMANDS.ADD_EXTERNAL_LINKS, { projectId: project.id, capture });
+      if (disposed) return;
+      if (!capture.links.length && !result.truncated) {
+        toast('No external links found on this page.', { type: 'info' });
+        return;
+      }
+      const skipped = [];
+      if (result.duplicates) skipped.push(`${result.duplicates} ${result.duplicates === 1 ? 'duplicate' : 'duplicates'}`);
+      if (result.skipped) skipped.push(`${result.skipped} unsupported ${result.skipped === 1 ? 'link' : 'links'}`);
+      toast(`Added ${result.added} external ${result.added === 1 ? 'link' : 'links'} to ${project.name}.${skipped.length ? ` Skipped ${skipped.join(' and ')}.` : ''}${result.truncated ? ' Collection limit reached; some links were left out.' : ''}`, {
+        type: skipped.length || result.truncated ? 'warning' : 'success', duration: 8000,
+      });
+    } finally {
+      collectingLinks = false;
+      if (!disposed) {
+        render();
+        if (restoreFocus && state.activeProjectId === project.id && document.activeElement === document.body) {
+          button.focus({ preventScroll: true });
+        }
+      }
+    }
+  }
+
   function showAboutDialog() {
     const credit = element('p', 'dialog-description oj-muted', 'Created by ');
     const website = element('a', 'oj-link', 'Oliver Jessner');
@@ -335,6 +370,10 @@ function start() {
   $('create-first-project').addEventListener('click', createProjectDialog);
   $('add-link').addEventListener('click', addLinkDialog);
   $('add-first-link').addEventListener('click', addLinkDialog);
+  $('collect-external-links').addEventListener('click', () => {
+    const project = activeProject();
+    if (project) run(() => collectExternalLinks(project));
+  });
   $('retry').addEventListener('click', () => run(initialize));
   $('search').addEventListener('input', (event) => { state.searchQuery = event.target.value; render(); });
   $('clear-search').addEventListener('click', () => {

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added a **Collect external links** button that saves external HTTP/HTTPS links from the current page to the selected project, including link text and source metadata, with duplicate/result feedback.
+- Added temporary `activeTab`/`scripting` access for collection on click, with clear recovery messages for missing access and protected pages, and checks for page parsing, project isolation, concurrent actions and storage errors.
+- Synchronized the vendored design system with the existing oj-designsystem 0.2.0 dependency pin.
 - Added **Import TXT…** to each project's menu for local UTF-8 files with one HTTP/HTTPS URL per line.
 - Imports append links in file order, ignore blank lines, skip duplicate/invalid URLs with result counts, and save each batch together without changing other projects.
 - Added import validation, persistence/concurrency and browser checks, including file errors, retry after storage failure and narrow-panel dialogs.

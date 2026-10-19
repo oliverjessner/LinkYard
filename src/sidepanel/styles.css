@@ -14,7 +14,9 @@ body { min-width: 260px; display: flex; flex-direction: column; }
 .tab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tab-count { flex-shrink: 0; font-variant-numeric: tabular-nums; }
 main { flex: 1; min-width: 0; padding: var(--oj-space-5) var(--oj-space-5) var(--oj-space-8); }
-.project-actions { margin-bottom: var(--oj-space-4); }
+.project-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; margin-bottom: var(--oj-space-4); }
+.project-actions > #add-link { justify-self: start; }
+.collect-links-button { grid-column: 1 / -1; justify-self: start; max-width: 100%; white-space: normal; }
 .search-field { margin-bottom: var(--oj-space-5); }
 .search-field input { min-width: 0; }
 .list-summary { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--oj-space-2); margin-bottom: var(--oj-space-2); }

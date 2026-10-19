@@ -18,13 +18,20 @@ function report(error) {
 }
 
 async function configure() {
-  await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+  // Handle the action explicitly so Chrome grants activeTab access before the
+  // panel opens, and another toolbar click can renew access without closing it.
+  await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
   await chrome.action.setBadgeText({ text: '' });
   await rebuildContextMenus();
 }
 
 chrome.runtime.onInstalled.addListener(() => { configure().catch(report); });
 chrome.runtime.onStartup.addListener(() => { configure().catch(report); });
+chrome.action.onClicked.addListener((tab) => {
+  const options = Number.isInteger(tab?.windowId) ? { windowId: tab.windowId }
+    : Number.isInteger(tab?.id) ? { tabId: tab.id } : null;
+  if (options) chrome.sidePanel.open(options).catch(report);
+});
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (sender.id !== chrome.runtime.id || message?.type !== MESSAGE_TYPES.COMMAND) return false;

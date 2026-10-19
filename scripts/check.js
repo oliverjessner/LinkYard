@@ -11,7 +11,7 @@ assert.equal(manifest.manifest_version, 3);
 assert.equal(manifest.name, 'LinkYard');
 assert.equal(manifest.version, pkg.version);
 assert.equal(manifest.background.type, 'module');
-assert.deepEqual([...manifest.permissions].sort(), ['contextMenus', 'sidePanel', 'storage']);
+assert.deepEqual([...manifest.permissions].sort(), ['activeTab', 'contextMenus', 'scripting', 'sidePanel', 'storage']);
 assert.equal(manifest.host_permissions, undefined);
 assert.equal(manifest.content_scripts, undefined);
 assert.equal(manifest.action.default_popup, undefined);

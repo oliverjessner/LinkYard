@@ -1,5 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import { test as base, expect } from '@playwright/test';
+import { extractExternalPageLinks } from '../src/utils/page-links.js';
 
 const test = base.extend({
   app: async ({ page }, use) => {
@@ -47,6 +48,12 @@ const test = base.extend({
         };
         const openedUrls = [];
         const openedTabs = [];
+        let activeTab = { id: 7, url: 'https://source.test/research' };
+        let pageCapture = { sourceUrl: 'https://source.test/research', sourceTitle: 'Source page', links: [], truncated: false };
+        const scriptCalls = [];
+        let rejectNextCapture = false;
+        let delayedCapture = null;
+        let releaseCapture = null;
         let rejectNextOpen = false;
         let delayedSelection = null;
         let releaseSelection = null;
@@ -93,6 +100,10 @@ const test = base.extend({
             },
           },
           tabs: {
+            async query(options) {
+              if (!options.active || !options.currentWindow) throw new Error('Collection must query the current window active tab.');
+              return activeTab ? [structuredClone(activeTab)] : [];
+            },
             async create(options) {
               if (rejectNextOpen) {
                 rejectNextOpen = false;
@@ -102,11 +113,30 @@ const test = base.extend({
               openedTabs.push({ ...options, createdAt: performance.now() });
             },
           },
+          scripting: {
+            async executeScript(options) {
+              scriptCalls.push({ target: options.target, world: options.world, args: options.args });
+              const delay = delayedCapture;
+              delayedCapture = null;
+              if (delay) await delay;
+              if (rejectNextCapture) {
+                rejectNextCapture = false;
+                throw new Error('Missing activeTab permission.');
+              }
+              return [{ frameId: 0, result: structuredClone(pageCapture) }];
+            },
+          },
         };
         window.__linkyardTest = {
           read: async () => (await ready).read(),
           execute: async (command, payload) => (await ready).execute(command, payload),
           failNextWrite: () => { rejectNextWrite = true; },
+          setPageCapture: (value) => { pageCapture = value; },
+          setActiveTab: (value) => { activeTab = value; },
+          failNextCapture: () => { rejectNextCapture = true; },
+          scriptCalls,
+          delayNextCapture: () => { delayedCapture = new Promise((resolve) => { releaseCapture = resolve; }); },
+          releaseCapture: () => releaseCapture?.(),
           openedUrls,
           openedTabs,
           failNextOpen: () => { rejectNextOpen = true; },
@@ -454,6 +484,172 @@ test('TXT import dialog fits narrow panels and cancellation never changes stored
     await expect(page.locator('#project-menu')).toBeFocused();
     expect(await app.read()).toEqual(before);
   }
+});
+
+test('Collect external links appends to the selected project with titles, source metadata and duplicate feedback', async ({ page, app }) => {
+  await app.load({ projects: [
+    { name: 'Research', links: [{ url: 'https://existing.test/article', title: 'Existing article' }] },
+    { name: 'Archive', links: [{ url: 'https://shared.test/article', title: 'Archived article' }] },
+  ] });
+  const before = await app.read();
+  await page.evaluate(() => window.__linkyardTest.setPageCapture({
+    sourceUrl: 'https://source.test/research', sourceTitle: 'Research sources', truncated: false,
+    links: [
+      { url: 'https://new.test/article#reading', title: 'New article' },
+      { url: 'https://new.test/article/', title: 'Duplicate article' },
+      { url: 'https://existing.test/article#same', title: 'Existing article' },
+      { url: 'https://shared.test/article', title: 'Shared article' },
+      { url: 'https://source.test/internal', title: 'Internal' }, { url: 'javascript:alert(1)', title: 'Unsafe' },
+    ],
+  }));
+  const collect = page.getByRole('button', { name: 'Collect external links', exact: true });
+  await expect(collect).toBeVisible();
+  await collect.click();
+  await expect(collect).toBeEnabled();
+  await expect(collect).toHaveAttribute('aria-busy', 'false');
+  await expect(page.locator('.oj-toast-message')).toHaveText('Added 2 external links to Research. Skipped 2 duplicates and 2 unsupported links.');
+  await expect(collect).toBeFocused();
+  await expect(page.locator('#link-list > li')).toHaveCount(3);
+  await expect(page.getByRole('link', { name: 'New article', exact: true })).toHaveAttribute('href', 'https://new.test/article#reading');
+  await expect(page.getByRole('tab', { name: 'Research 3', exact: true })).toHaveAttribute('aria-selected', 'true');
+  const after = await app.read();
+  expect(after.links.slice(0, 2)).toEqual(before.links);
+  expect(after.links.slice(2).map((item) => [item.projectId, item.sourceUrl, item.sourceTitle])).toEqual([
+    [before.projects[0].id, 'https://source.test/research', 'Research sources'],
+    [before.projects[0].id, 'https://source.test/research', 'Research sources'],
+  ]);
+  expect(after.projects[1]).toEqual(before.projects[1]);
+  expect(await page.evaluate(() => window.__linkyardTest.openedUrls)).toEqual([]);
+  expect(await page.evaluate(() => window.__linkyardTest.scriptCalls.map(({ target, world }) => ({ target, world })))).toEqual([
+    { target: { tabId: 7 }, world: 'ISOLATED' },
+  ]);
+  await mkdir('screenshots', { recursive: true });
+  for (const width of [260, 360]) {
+    await page.setViewportSize({ width, height: 800 });
+    const bounds = await collect.boundingBox();
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: `screenshots/linkyard-external-links-${width}.png`, fullPage: true });
+  }
+});
+
+test('Collect external links keeps its destination and blocks repeated clicks while collection is pending', async ({ page, app }) => {
+  await app.load({ projects: [{ name: 'Research' }, { name: 'Archive' }] });
+  const before = await app.read();
+  await page.evaluate(() => {
+    window.__linkyardTest.setPageCapture({
+      sourceUrl: 'https://source.test/research', sourceTitle: 'Sources', links: [{ url: 'https://new.test/article' }],
+    });
+    window.__linkyardTest.delayNextCapture();
+  });
+  const collect = page.getByRole('button', { name: 'Collect external links', exact: true });
+  await collect.click();
+  await expect(collect).toBeDisabled();
+  await expect(collect).toHaveAttribute('aria-busy', 'true');
+  await collect.evaluate((button) => button.click());
+  await page.getByRole('tab', { name: 'Archive 0', exact: true }).click();
+  await expect(collect).toBeDisabled();
+  expect(await page.evaluate(() => window.__linkyardTest.scriptCalls.length)).toBe(1);
+  await page.evaluate(() => window.__linkyardTest.releaseCapture());
+  await expect(collect).toBeEnabled();
+  await expect(page.locator('.oj-toast-message')).toHaveText('Added 1 external link to Research.');
+  await expect(page.getByRole('tab', { name: 'Archive 0', exact: true })).toBeFocused();
+  const after = await app.read();
+  expect(after.links).toHaveLength(1);
+  expect(after.links[0].projectId).toBe(before.projects[0].id);
+  expect(after.settings.activeProjectId).toBe(before.projects[1].id);
+  await expect(page.locator('#link-list > li')).toHaveCount(0);
+});
+
+test('Collect external links handles inaccessible tabs and storage errors and remains usable for retry', async ({ page, app }) => {
+  await app.load({ projects: [{ name: 'Research' }] });
+  const before = await app.read();
+  const collect = page.getByRole('button', { name: 'Collect external links', exact: true });
+  for (const [tab, message] of [
+    [{ id: 7 }, 'Click the LinkYard toolbar icon'],
+    [{ id: 7, url: 'chrome://settings' }, 'Open an HTTP/HTTPS web page'],
+    [{ id: 7, url: 'https://chromewebstore.google.com/detail/test' }, 'Chrome does not allow collection from the Chrome Web Store'],
+  ]) {
+    await page.evaluate((value) => window.__linkyardTest.setActiveTab(value), tab);
+    app.expectError(message);
+    await collect.click();
+    await expect(page.locator('.oj-toast-message').last()).toContainText(message);
+    await expect(collect).toBeEnabled();
+    expect(await app.read()).toEqual(before);
+  }
+  expect(await page.evaluate(() => window.__linkyardTest.scriptCalls.length)).toBe(0);
+  await page.evaluate(() => {
+    window.__linkyardTest.setActiveTab({ id: 7, url: 'https://source.test/research' });
+    window.__linkyardTest.setPageCapture({ sourceUrl: 'https://source.test/research', links: [{ url: 'https://new.test/article' }] });
+    window.__linkyardTest.failNextCapture();
+  });
+  await collect.click();
+  await expect(page.locator('.oj-toast-message').last()).toContainText('Click the LinkYard toolbar icon');
+  await expect(collect).toBeEnabled();
+  app.expectError('Storage full in browser regression.');
+  await page.evaluate(() => window.__linkyardTest.failNextWrite());
+  await collect.click();
+  await expect(page.locator('.oj-toast-message').last()).toHaveText('Storage full in browser regression.');
+  await expect(collect).toBeEnabled();
+  expect(await app.read()).toEqual(before);
+  await collect.click();
+  await expect(page.locator('.oj-toast-message').last()).toHaveText('Added 1 external link to Research.');
+  await expect(page.locator('#link-list > li')).toHaveCount(1);
+});
+
+test('Collect external links reports empty and limited collections without claiming a full import', async ({ page, app }) => {
+  await app.load({ projects: [{ name: 'Research' }] });
+  const before = await app.read();
+  const collect = page.getByRole('button', { name: 'Collect external links', exact: true });
+  await collect.click();
+  await expect(page.locator('.oj-toast-message')).toHaveText('No external links found on this page.');
+  expect(await app.read()).toEqual(before);
+  await page.evaluate(() => window.__linkyardTest.setPageCapture({
+    sourceUrl: 'https://source.test/research', links: [{ url: 'https://new.test/article' }], truncated: true,
+  }));
+  await collect.click();
+  await expect(page.locator('.oj-toast-message').last()).toHaveText('Added 1 external link to Research. Collection limit reached; some links were left out.');
+});
+
+test('page extractor reads actual anchors, resolves base URLs and excludes internal, unsafe and frame links', async ({ page }) => {
+  await page.route('https://www.source.test/research', (route) => route.fulfill({
+    contentType: 'text/html', body: `<!doctype html><title>Research sources</title>
+      <base href="https://cdn.external.test/base/">
+      <a href="https://source.test/internal">Internal host</a>
+      <a href="http://www.source.test/internal">Same host with www</a>
+      <a href="https://external.test/article#reading">  An external\n article  </a>
+      <a href="relative">Relative external base</a>
+      <a href="//other.test/notes" aria-label="Notes"></a>
+      <a href="https://external.test/article/#duplicate" title="Duplicate"></a>
+      <a href="mailto:hi@other.test">Mail</a><a href="javascript:window.__executed = true">Script</a>
+      <a href="file:///tmp/test">File</a><a href="https://user:password@other.test">Credentials</a>
+      <a href="http://[invalid">Invalid</a>
+      <a href="https://image.test"><img alt="Image article"></a>
+      <map><area href="https://area.test/" alt="Area article" title="Area title"></map>
+      <iframe srcdoc='<a href="https://frame.test">Frame</a>'></iframe>`,
+  }));
+  await page.goto('https://www.source.test/research');
+  const result = await page.evaluate(extractExternalPageLinks, { maxLinks: 100, maxBytes: 100_000 });
+  expect(result.sourceUrl).toBe('https://www.source.test/research');
+  expect(result.sourceTitle).toBe('Research sources');
+  expect(result.links).toEqual([
+    { url: 'https://external.test/article#reading', title: 'An external article' },
+    { url: 'https://cdn.external.test/base/relative', title: 'Relative external base' },
+    { url: 'https://other.test/notes', title: 'Notes' },
+    { url: 'https://external.test/article/#duplicate', title: 'Duplicate' },
+    { url: 'https://image.test/', title: 'Image article' },
+    { url: 'https://area.test/', title: 'Area title' },
+  ]);
+  expect(result.truncated).toBe(false);
+  expect(await page.evaluate(() => window.__executed)).toBeUndefined();
+  const limited = await page.evaluate(extractExternalPageLinks, { maxLinks: 2, maxBytes: 100_000 });
+  expect(limited.links).toHaveLength(2);
+  expect(limited.truncated).toBe(true);
+  const bytes = new TextEncoder().encode(JSON.stringify(result.links.slice(0, 1))).byteLength;
+  const byteLimited = await page.evaluate(extractExternalPageLinks, { maxLinks: 100, maxBytes: bytes });
+  expect(byteLimited.links).toEqual(result.links.slice(0, 1));
+  expect(byteLimited.truncated).toBe(true);
 });
 
 test('Open all links is disabled for an empty project and recovers after a failed opening', async ({ page, app }) => {

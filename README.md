@@ -19,6 +19,7 @@ Collect without breaking your browsing flow. Keep research in projects, browse a
 - Create, rename and delete projects
 - Project JSON and TXT exports
 - Import TXT link lists into an existing project
+- Collect external links from the current page into the selected project
 - oj-designsystem with a compact dark theme, local Comfortaa/JetBrains Mono fonts and Font Awesome icons
 - Keyboard controls, accessible menus, native dialogs and tooltips
 - Stacked notifications with dismiss buttons and timers that pause on hover/focus
@@ -53,6 +54,12 @@ Links appear newest first. The link's menu offers **Open in new tab**, **Copy UR
 
 The project menu also offers **Open all links**. It opens all links in that project in background tabs, newest first, with one second between openings. This includes links hidden by the current search. The action is disabled for empty projects and while a batch is opening.
 
+Use **Collect external links** below **Add link** to collect HTTP/HTTPS links from the current tab into the selected project. Link text becomes the title when available, and the page URL/title are saved as source information. Duplicate links are skipped and the result shows how many links were added.
+
+Open LinkYard using its toolbar icon on the page you want to collect from. Chrome's temporary [activeTab access](https://developer.chrome.com/docs/extensions/develop/concepts/activeTab) may need to be renewed with another toolbar click after switching tabs or navigating to another website. Chrome settings, the Chrome Web Store and other protected pages cannot be read.
+
+External means a different hostname; `www.example.com` and `example.com` count as the same host, while other subdomains count as different hosts. Collection reads the main document's existing anchor/image-map links, resolves relative URLs against the page's base URL and ignores unsafe schemes or embedded credentials. It does not open links, fetch their contents, traverse frames, or scroll/load more content. Each click collects up to 10,000 link entries or 2 MB of link data; a notice appears if the collection is incomplete. Processing and storage remain local.
+
 Use arrow keys or Home/End to switch projects and navigate menus, Enter to activate or submit, and Escape to close dialogs or menus. Type a menu item's first letters to find it. Notifications can be dismissed, and their timers pause while hovered or focused. Collection feedback appears briefly on the toolbar badge and as a toast when the panel is open: `✓` means added, `=` means already collected, and `!` means an error.
 
 <img src="src/assets/images/ui.png" alt="LinkYard's Chrome side panel with project tabs, search and collected links" width="360">
@@ -83,7 +90,7 @@ Project filenames are normalized safely, e.g. `AI / EU: Research?` becomes `ai-e
 
 ## Architecture
 
-Manifest V3, vanilla JavaScript modules, HTML and CSS, with [oj-designsystem](https://github.com/oliverjessner/oj-designsystem) 0.1.0 for shared UI components. No frontend framework or bundler. Node.js is used only for tests, development checks and refreshing the vendored design system.
+Manifest V3, vanilla JavaScript modules, HTML and CSS, with [oj-designsystem](https://github.com/oliverjessner/oj-designsystem) 0.2.0 for shared UI components. No frontend framework or bundler. Node.js is used only for tests, development checks and refreshing the vendored design system.
 
 ```text
 manifest.json
@@ -123,7 +130,7 @@ npm run check
 
 ### Chrome APIs and permissions
 
-Only `storage`, `contextMenus` and `sidePanel` permissions are requested.
+The extension requests `storage`, `contextMenus`, `sidePanel`, `activeTab` and `scripting`.
 
 - `chrome.storage.local` stores user data.
 - `chrome.storage.session` temporarily holds a context-menu capture while the new-project dialog opens. It expires after five minutes and is not persisted across a browser restart.
@@ -132,8 +139,10 @@ Only `storage`, `contextMenus` and `sidePanel` permissions are requested.
 - `chrome.runtime` routes commands and feedback.
 - `chrome.action` provides short badge feedback.
 - `chrome.tabs.create` opens links and does not require the `tabs` permission ([Chrome API documentation](https://developer.chrome.com/docs/extensions/reference/api/tabs)).
+- `activeTab` grants temporary access to a page when the extension is invoked through its toolbar or context menu.
+- `chrome.scripting.executeScript` runs the link reader in the current tab's main frame in an isolated world, only after clicking **Collect external links**.
 
-No `tabs`, `downloads`, host permissions or content scripts. The extension does not read browser history or fetch target pages. The extension-page CSP restricts scripts to local files and blocks network connections.
+No `tabs`, `downloads`, persistent host permissions or automatically registered content scripts. The extension does not read browser history or fetch target pages. The extension-page CSP restricts scripts to local files and blocks network connections.
 
 ### Storage
 
@@ -182,7 +191,7 @@ swift scripts/generate-icons.swift
 
 This deterministic conversion removes transparent outer padding, preserves the logo's proportions, centers it on square transparent canvases and generates each required size. It is a development utility, not a build step.
 
-For a manual Chrome check: create a project, collect a link with the context menu, collect it again, switch/rename/delete projects, open and move links, search, download both project export formats, import a TXT list into an existing project, open About from the header, use Enter/Escape in dialogs, and restart Chrome to verify stored projects and selection. Resize the panel and create many tabs to verify horizontal scrolling.
+For a manual Chrome check: create a project, collect a link with the context menu, collect it again, switch/rename/delete projects, open and move links, search, download both project export formats, import a TXT list into an existing project, collect external links from a web page, open About from the header, use Enter/Escape in dialogs, and restart Chrome to verify stored projects and selection. Resize the panel and create many tabs to verify horizontal scrolling.
 
 ## Publish to the Chrome Web Store
 
@@ -242,7 +251,7 @@ For the Chrome Web Store, publish `PRIVACY.md` at a publicly accessible URL and 
 - Chrome only; no Firefox, Safari or mobile support.
 - Chrome's context-menu API does not provide reliable link text. Captured titles fall back to the target domain. Source titles are kept only when Chrome provides them; no broad tab-reading permission is requested.
 - Imports support TXT URL lists only; JSON and browser bookmark imports are not supported.
-- No sync, accounts, sharing, scraping, AI, notes UI or tags UI.
+- No sync, accounts, sharing, crawling, AI, notes UI or tags UI.
 - Data is local to this Chrome profile. Normal Chrome local-storage quotas apply.
 - URL normalization preserves query parameters, including tracking parameters; it only removes fragments, normalizes the hostname/default ports, and treats trailing path slashes as equivalent.
 

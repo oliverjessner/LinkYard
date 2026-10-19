@@ -17,10 +17,11 @@ When you use LinkYard, it processes:
 
 - **Projects:** names you enter, locally generated identifiers, and creation and modification dates.
 - **Saved links:** URLs, a normalized version of each URL for duplicate detection, domains, titles you enter or a domain-based fallback, project assignments, locally generated identifiers, and dates added.
-- **Source information:** when you save a link through the context menu, the URL of the page where you selected it and the page title when Chrome makes it available.
+- **Source information:** when you save a link through the context menu or collect external links from a page, that page's URL and title when available.
 - **Preferences:** the identifier of your active project.
 - **Temporary input:** a selected link and its source information while the new-project dialog opens, and text you enter into forms or search.
 - **TXT imports:** the contents of a TXT file you explicitly select to import links into a project. The file is read locally; accepted URLs become saved links. The original file and its name are not stored in your collection.
+- **Page link collection:** when you click **Collect external links**, the current page's anchor URLs and link text are read locally. Accepted external links, their titles and the source page's URL/title become part of the selected project. Full page HTML is not stored.
 
 Project names, titles and URLs may contain personal information depending on what you choose to save. Saved URLs can include query parameters. LinkYard does not automatically remove those parameters.
 
@@ -44,13 +45,15 @@ LinkYard does not add its own encryption to stored collections or exported files
 
 ## Permissions
 
-LinkYard requests three permissions:
+LinkYard requests five permissions:
 
 - **storage:** to retain projects, links and the active-project preference locally, and temporarily hold a selected link while the new-project dialog opens.
 - **contextMenus:** to let you save a selected link to your current project, another project or a new project through Chrome's right-click menu.
 - **sidePanel:** to display the interface for managing projects and links alongside the page you are browsing.
+- **activeTab:** to temporarily access the page where you invoke LinkYard through its toolbar icon or context menu.
+- **scripting:** to read external link URLs and text from that page only when you click **Collect external links**.
 
-The extension requests no host permissions and injects no content scripts into websites.
+The extension requests no persistent host permissions and installs no automatic content scripts on websites. The page link reader runs on demand in an isolated execution environment in the current tab's main frame. It reads links without changing the page or following those links.
 
 ## Sharing and actions you control
 

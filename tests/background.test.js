@@ -39,7 +39,7 @@ test('background routes real commands and captures through registered Chrome eve
       sendMessage: async () => {},
     },
     sidePanel: {
-      setPanelBehavior: async (options) => assert.equal(options.openPanelOnActionClick, true),
+      setPanelBehavior: async (options) => assert.equal(options.openPanelOnActionClick, false),
       open: (options) => { opened.push(options); return Promise.resolve(); },
     },
     contextMenus: {
@@ -48,6 +48,7 @@ test('background routes real commands and captures through registered Chrome eve
       create: (properties, callback) => { menuItems.set(properties.id, properties); callback(); },
     },
     action: {
+      onClicked: event(),
       setBadgeText: async (value) => { badges.push(value); },
       setTitle: async () => {}, setBadgeBackgroundColor: async () => {},
     },
@@ -99,4 +100,6 @@ test('background routes real commands and captures through registered Chrome eve
   assert.equal((await send(COMMANDS.GET_WORKSPACE)).workspace.links.length, 0);
   assert.ok(badges.some((entry) => entry.text === '✓'));
   assert.ok(badges.some((entry) => entry.text === '='));
+  api.action.onClicked.listeners[0]({ id: 9, windowId: 3 });
+  assert.deepEqual(opened.at(-1), { windowId: 3 });
 });

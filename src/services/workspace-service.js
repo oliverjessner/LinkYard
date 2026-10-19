@@ -2,6 +2,7 @@ import { COMMANDS } from '../constants.js';
 import { createProject, renameProject, deleteProject, setActiveProject } from './project-service.js';
 import { addLink, renameLink, deleteLink, moveLink } from './link-service.js';
 import { importProjectFromTxt } from './import-service.js';
+import { addExternalPageLinks } from './page-link-service.js';
 
 export function createWorkspaceService(storage) {
   let tail = Promise.resolve();
@@ -53,6 +54,11 @@ export function createWorkspaceService(storage) {
             break;
           case COMMANDS.IMPORT_PROJECT_TXT:
             result = importProjectFromTxt(workspace, payload.projectId, payload.text);
+            workspace = result.workspace;
+            if (!result.added) return result;
+            break;
+          case COMMANDS.ADD_EXTERNAL_LINKS:
+            result = addExternalPageLinks(workspace, payload.projectId, payload.capture);
             workspace = result.workspace;
             if (!result.added) return result;
             break;

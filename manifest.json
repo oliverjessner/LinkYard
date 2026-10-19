@@ -4,7 +4,7 @@
     "version": "0.2.4",
     "description": "Right-click, collect, keep moving. Project-based link collections stored locally, without accounts or tracking.",
     "minimum_chrome_version": "116",
-    "permissions": ["storage", "contextMenus", "sidePanel"],
+    "permissions": ["storage", "contextMenus", "sidePanel", "activeTab", "scripting"],
     "background": {
         "service_worker": "src/background/service-worker.js",
         "type": "module"

@@ -29,9 +29,9 @@
         "publish:chrome": "node scripts/publish-chrome.js"
     },
     "dependencies": {
-        "oj-designsystem": "0.1.0"
+        "oj-designsystem": "0.2.0"
     },
     "devDependencies": {
-        "@playwright/test": "1.64.0"
+        "@playwright/test": "1.64.1"
     }
 }
